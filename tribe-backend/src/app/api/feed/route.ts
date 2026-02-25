@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '../../../lib/prisma';
 import { getUserIdFromRequest } from '../../../lib/auth';
+import { calculateDistanceSq, calculateInterestScore, calculateFinalMatchScore } from '../../../lib/matching';
 
 export async function GET(req: Request) {
     try {
@@ -9,95 +10,141 @@ export async function GET(req: Request) {
             return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
         }
 
-        // Get the current user to find their location
+        // 1. Fetch current user data and interests
         const currentUser = await prisma.user.findUnique({
             where: { id: userId },
-            select: { latitude: true, longitude: true, interests: { select: { interestId: true } } }
+            select: {
+                latitude: true,
+                longitude: true,
+                interests: {
+                    select: {
+                        interestId: true,
+                        level: true,
+                        interest: { select: { parentId: true } }
+                    }
+                }
+            }
         });
 
-        if (!currentUser || !currentUser.latitude || !currentUser.longitude) {
+        if (!currentUser) {
+            return NextResponse.json({ error: 'User not found' }, { status: 404 });
+        }
+
+        // GUARD: If user has 0 interests
+        if (!currentUser.interests || currentUser.interests.length === 0) {
             return NextResponse.json(
-                { error: 'User location not set. Please update your profile with coordinates.' },
-                { status: 400 }
+                {
+                    message: "Feed empty. Add interests to discover matching people.",
+                    feed: [],
+                    needsInterests: true
+                },
+                { status: 200 }
             );
         }
 
-        // Simple bounding box for Geo Feed (approx 10km depending on latitude)
-        // 1 degree latitude = ~111km, so 0.1 degree is ~11km
-        const latSpan = 0.1;
-        const lonSpan = 0.1;
-
-        const minLat = currentUser.latitude - latSpan;
-        const maxLat = currentUser.latitude + latSpan;
-        const minLon = currentUser.longitude - lonSpan;
-        const maxLon = currentUser.longitude + lonSpan;
-
-        // We can also filter users by shared interests if desired, 
-        // but for a general geo feed we'll just fetch users nearby who 
-        // haven't been swiped on (interacted with) yet.
-
-        // Get all targets the current user has already acted on (LIKE, PASS, etc)
+        // 2. Fetch past interactions to ignore
         const pastInteractions = await prisma.interaction.findMany({
             where: { actorId: userId },
             select: { targetId: true }
         });
 
         const ignoredUserIds = pastInteractions.map(i => i.targetId);
-        // Add current user to ignored list
-        ignoredUserIds.push(userId);
+        ignoredUserIds.push(userId); // Add self to neglected list
 
-        // Query for nearby users
-        const feedUsers = await prisma.user.findMany({
-            where: {
-                id: { notIn: ignoredUserIds },
-                latitude: {
-                    gte: minLat,
-                    lte: maxLat,
+        // 3. Prepare the feed pool
+        let feedUsers: any[] = [];
+        const hasLocation = currentUser.latitude !== null && currentUser.longitude !== null;
+
+        if (hasLocation) {
+            // 3A. User HAS location -> Perform Geo-Bounded search
+            const latSpan = 0.5; // ~55km bounding radius
+            const lonSpan = 0.5;
+
+            const minLat = currentUser.latitude! - latSpan;
+            const maxLat = currentUser.latitude! + latSpan;
+            const minLon = currentUser.longitude! - lonSpan;
+            const maxLon = currentUser.longitude! + lonSpan;
+
+            feedUsers = await prisma.user.findMany({
+                where: {
+                    id: { notIn: ignoredUserIds },
+                    latitude: { gte: minLat, lte: maxLat },
+                    longitude: { gte: minLon, lte: maxLon },
                 },
-                longitude: {
-                    gte: minLon,
-                    lte: maxLon,
-                },
-            },
-            select: {
-                id: true,
-                name: true,
-                latitude: true,
-                longitude: true,
-                interests: {
-                    include: {
-                        interest: {
-                            select: { name: true }
+                select: {
+                    id: true,
+                    name: true,
+                    latitude: true,
+                    longitude: true,
+                    interests: {
+                        select: {
+                            interestId: true,
+                            level: true,
+                            interest: { select: { name: true, parentId: true } }
                         }
                     }
-                }
-            },
-            take: 20 // Paginate/limit results
-        });
+                },
+                take: 100 // larger pool to calculate scores against
+            });
+        } else {
+            // 3B. User has NO location -> Perform Global Search ignoring distance (Fallback Feed for resilience)
+            feedUsers = await prisma.user.findMany({
+                where: {
+                    id: { notIn: ignoredUserIds },
+                },
+                select: {
+                    id: true,
+                    name: true,
+                    latitude: true,
+                    longitude: true,
+                    interests: {
+                        select: {
+                            interestId: true,
+                            level: true,
+                            interest: { select: { name: true, parentId: true } }
+                        }
+                    }
+                },
+                take: 100
+            });
+        }
 
-        // Optionally sort by distance (euclidean approximation)
+        // 4. Calculate Scores and Sort
         const sortedFeed = feedUsers.map(u => {
-            const dLat = (u.latitude || 0) - currentUser.latitude!;
-            const dLon = (u.longitude || 0) - currentUser.longitude!;
-            const distSq = dLat * dLat + dLon * dLon;
+            let distanceSq: number | null = null;
 
-            // Calculate # of shared interests
-            const currentUserInterestIds = currentUser.interests.map(i => i.interestId);
-            const sharedInterests = u.interests.filter(i => currentUserInterestIds.includes(i.interestId)).length;
-
-            return { ...u, _distanceSq: distSq, _sharedInterestsCount: sharedInterests };
-        }).sort((a, b) => {
-            // Prioritize shared interest count, then shortest distance
-            if (b._sharedInterestsCount !== a._sharedInterestsCount) {
-                return b._sharedInterestsCount - a._sharedInterestsCount;
+            // Calculate distance if both users have location
+            if (hasLocation && u.latitude !== null && u.longitude !== null) {
+                distanceSq = calculateDistanceSq(
+                    currentUser.latitude!, currentUser.longitude!,
+                    u.latitude, u.longitude
+                );
             }
-            return a._distanceSq - b._distanceSq;
+
+            // Calculate Interest Match logic
+            const interestScore = calculateInterestScore(currentUser.interests as any, u.interests as any);
+
+            // Calculate final composite Match Score
+            const finalScore = calculateFinalMatchScore(interestScore, distanceSq);
+
+            return {
+                ...u,
+                _distanceSq: distanceSq,
+                _interestScore: interestScore,
+                _finalScore: finalScore
+            };
+        }).sort((a, b) => {
+            // Sort Descending by _finalScore
+            return b._finalScore - a._finalScore;
         });
+
+        // 5. Return top 20
+        const paginatedFeed = sortedFeed.slice(0, 20);
 
         return NextResponse.json({
             message: 'Geo feed fetched successfully',
-            count: sortedFeed.length,
-            feed: sortedFeed,
+            count: paginatedFeed.length,
+            feed: paginatedFeed
         }, { status: 200 });
 
     } catch (error) {

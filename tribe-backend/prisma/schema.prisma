@@ -14,19 +14,19 @@ datasource db {
 }
 
 model User {
-  id        String   @id @default(uuid())
-  email     String   @unique
-  password  String
-  name      String?
-  
+  id       String  @id @default(uuid())
+  email    String  @unique
+  password String
+  name     String?
+
   // Geo-location fields
   latitude  Float?
   longitude Float?
-  
+
   interests UserInterest[]
-  
+
   // Interactions where this user is the actor
-  sentInteractions Interaction[] @relation("ActorInteractions")
+  sentInteractions     Interaction[] @relation("ActorInteractions")
   // Interactions where this user is the target
   receivedInteractions Interaction[] @relation("TargetInteractions")
 
@@ -37,22 +37,24 @@ model User {
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+
+  @@index([latitude, longitude])
 }
 
 model Interest {
-  id          String   @id @default(uuid())
-  name        String   @unique
+  id          String  @id @default(uuid())
+  name        String  @unique
   description String?
-  
-  // Hierarchical tree structure
-  parentId    String?
-  parent      Interest?  @relation("InterestHierarchy", fields: [parentId], references: [id])
-  children    Interest[] @relation("InterestHierarchy")
 
-  users       UserInterest[]
-  
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  // Hierarchical tree structure
+  parentId String?
+  parent   Interest?  @relation("InterestHierarchy", fields: [parentId], references: [id])
+  children Interest[] @relation("InterestHierarchy")
+
+  users UserInterest[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
 
 // Join table for User and Interest (many-to-many with explicit model)
@@ -62,30 +64,34 @@ model UserInterest {
   user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   interestId String
   interest   Interest @relation(fields: [interestId], references: [id], onDelete: Cascade)
-  
-  // Optional: weight or proficiency level
-  level      Int?     @default(1)
 
-  createdAt  DateTime @default(now())
+  // Optional: weight or proficiency level
+  level Int? @default(1)
+
+  createdAt DateTime @default(now())
 
   @@unique([userId, interestId])
+  @@index([userId])
+  @@index([interestId])
 }
 
 model Interaction {
-  id          String   @id @default(uuid())
-  
-  actorId     String
-  actor       User     @relation("ActorInteractions", fields: [actorId], references: [id], onDelete: Cascade)
-  
-  targetId    String
-  target      User     @relation("TargetInteractions", fields: [targetId], references: [id], onDelete: Cascade)
-  
-  type        InteractionType
-  
-  createdAt   DateTime @default(now())
+  id String @id @default(uuid())
 
+  actorId String
+  actor   User   @relation("ActorInteractions", fields: [actorId], references: [id], onDelete: Cascade)
+
+  targetId String
+  target   User   @relation("TargetInteractions", fields: [targetId], references: [id], onDelete: Cascade)
+
+  type InteractionType
+
+  createdAt DateTime @default(now())
+
+  @@unique([actorId, targetId])
   // A user can typically only have one active interaction type towards another user
-  @@unique([actorId, targetId]) 
+  @@index([actorId])
+  @@index([targetId])
 }
 
 enum InteractionType {
@@ -95,15 +101,15 @@ enum InteractionType {
 }
 
 model MatchUnlock {
-  id          String   @id @default(uuid())
-  
-  user1Id     String
-  user1       User     @relation("MatchUser1", fields: [user1Id], references: [id], onDelete: Cascade)
-  
-  user2Id     String
-  user2       User     @relation("MatchUser2", fields: [user2Id], references: [id], onDelete: Cascade)
-  
-  createdAt   DateTime @default(now())
+  id String @id @default(uuid())
+
+  user1Id String
+  user1   User   @relation("MatchUser1", fields: [user1Id], references: [id], onDelete: Cascade)
+
+  user2Id String
+  user2   User   @relation("MatchUser2", fields: [user2Id], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
 
   @@unique([user1Id, user2Id])
 }
