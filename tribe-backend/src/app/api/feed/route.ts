@@ -123,15 +123,23 @@ export async function GET(req: Request) {
             }
 
             // Calculate Interest Match logic
-            const interestScore = calculateInterestScore(currentUser.interests as any, u.interests as any);
+            const breakdown = calculateInterestScore(currentUser.interests as any, u.interests as any);
+            const interestScore = breakdown.score;
 
             // Calculate final composite Match Score
             const finalScore = calculateFinalMatchScore(interestScore, distanceSq);
+
+            // Distance Penalty Reverse Calculation
+            const distancePenalty = Math.max(0, interestScore - finalScore);
 
             return {
                 ...u,
                 _distanceSq: distanceSq,
                 _interestScore: interestScore,
+                _distancePenalty: distancePenalty,
+                _exactMatches: breakdown.exactMatches,
+                _parentChildMatches: breakdown.parentChildMatches,
+                _sameCategoryMatches: breakdown.sameCategoryMatches,
                 _finalScore: finalScore
             };
         }).sort((a, b) => {
@@ -149,7 +157,12 @@ export async function GET(req: Request) {
                 durationMs: Math.round(endTime - startTime),
                 candidatesEvaluated: feedUsers.length,
                 returnedCount: paginatedFeed.length,
-                topScores: paginatedFeed.slice(0, 3).map(u => ({ id: u.id, finalScore: u._finalScore, interestScore: u._interestScore, distanceSq: u._distanceSq }))
+                topScores: paginatedFeed.slice(0, 3).map(u => ({
+                    id: u.id,
+                    finalScore: u._finalScore,
+                    interestScore: u._interestScore,
+                    distancePenalty: u._distancePenalty
+                }))
             }));
         }
 

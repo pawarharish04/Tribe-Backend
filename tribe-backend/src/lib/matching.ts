@@ -26,11 +26,21 @@ export interface InterestData {
  * 
  * score = (sharedExact × 20) + (parentChild × 12) + (sameCategory × 8) + (strengthWeight × multiplier)
  */
+export interface ScoreBreakdown {
+    score: number;
+    exactMatches: number;
+    parentChildMatches: number;
+    sameCategoryMatches: number;
+}
+
 export function calculateInterestScore(
     userInterests: InterestData[],
     targetInterests: InterestData[]
-): number {
+): ScoreBreakdown {
     let score = 0;
+    let exactMatches = 0;
+    let parentChildMatches = 0;
+    let sameCategoryMatches = 0;
 
     const userInterestMap = new Map<string, InterestData>();
     userInterests.forEach(ui => userInterestMap.set(ui.interestId, ui));
@@ -49,6 +59,8 @@ export function calculateInterestScore(
             const strengthModifier = Math.min(userLevel, targetLevel) * 0.1;
             score += basePoints * (1 + strengthModifier);
 
+            exactMatches++;
+
             return;
         }
 
@@ -58,6 +70,7 @@ export function calculateInterestScore(
             if (ti.interest.parentId === ui.interestId || ui.interest.parentId === ti.interestId) {
                 score += 12;
                 matchedParentChild = true;
+                parentChildMatches++;
                 break; // Prevent double counting for the same target interest
             }
         }
@@ -74,13 +87,19 @@ export function calculateInterestScore(
             ) {
                 score += 8;
                 matchedCategory = true;
+                sameCategoryMatches++;
                 break; // Prevent double counting sibling overlaps
             }
         }
     });
 
     // Enforce a ceiling so numerous interests don't explode the score
-    return Math.min(score, 100);
+    return {
+        score: Math.min(score, 100),
+        exactMatches,
+        parentChildMatches,
+        sameCategoryMatches
+    };
 }
 
 /**
