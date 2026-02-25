@@ -4,6 +4,7 @@ import { getUserIdFromRequest } from '../../../lib/auth';
 import { calculateDistanceSq, calculateInterestScore, calculateFinalMatchScore } from '../../../lib/matching';
 
 export async function GET(req: Request) {
+    const startTime = performance.now();
     try {
         const userId = getUserIdFromRequest(req);
         if (!userId) {
@@ -48,7 +49,7 @@ export async function GET(req: Request) {
             select: { targetId: true }
         });
 
-        const ignoredUserIds = pastInteractions.map(i => i.targetId);
+        const ignoredUserIds = pastInteractions.map((i: any) => i.targetId);
         ignoredUserIds.push(userId); // Add self to neglected list
 
         // 3. Prepare the feed pool
@@ -140,6 +141,15 @@ export async function GET(req: Request) {
 
         // 5. Return top 20
         const paginatedFeed = sortedFeed.slice(0, 20);
+
+        const endTime = performance.now();
+        console.log(JSON.stringify({
+            event: 'feed_generated',
+            durationMs: Math.round(endTime - startTime),
+            candidatesEvaluated: feedUsers.length,
+            returnedCount: paginatedFeed.length,
+            topScores: paginatedFeed.slice(0, 3).map(u => ({ id: u.id, finalScore: u._finalScore, interestScore: u._interestScore, distanceSq: u._distanceSq }))
+        }));
 
         return NextResponse.json({
             message: 'Geo feed fetched successfully',

@@ -55,55 +55,51 @@ export async function POST(req: Request) {
             return NextResponse.json({ error: 'Cannot interact with yourself.' }, { status: 400 });
         }
 
-        // Upsert the interaction signal
-        const interaction = await prisma.interaction.upsert({
+        // Check if interaction already exists to prevent duplicate likes
+        const existingInteraction = await prisma.interaction.findUnique({
             where: {
-                actorId_targetId: {
-                    actorId: userId,
-                    targetId: targetId
-                }
-            },
-            update: {
-                type: type
-            },
-            create: {
-                actorId: userId,
-                targetId: targetId,
-                type: type
+                actorId_targetId: { actorId: userId, targetId: targetId }
             }
         });
 
-        // Match Logic Calculation (If they liked us, we like them -> Match!)
-        if (type === 'LIKE' || type === 'SUPERLIKE') {
-            const reciprocalInteraction = await prisma.interaction.findUnique({
-                where: {
-                    actorId_targetId: {
-                        actorId: targetId,
-                        targetId: userId
-                    }
-                }
+        // If they already liked the person and they're just re-submitting, just return a 200 to save DB writes
+        if (existingInteraction && existingInteraction.type === type && (type === 'LIKE' || type === 'SUPERLIKE')) {
+            return NextResponse.json({ message: 'Interaction already recorded', matched: false, interaction: existingInteraction }, { status: 200 });
+        }
+
+        let isMatch = false;
+
+        // Execute signal and reciprocal check in a transaction
+        const interaction = await prisma.$transaction(async (tx: any) => {
+            // Upsert the interaction signal
+            const inter = await tx.interaction.upsert({
+                where: { actorId_targetId: { actorId: userId, targetId: targetId } },
+                update: { type: type },
+                create: { actorId: userId, targetId: targetId, type: type }
             });
 
-            if (reciprocalInteraction && (reciprocalInteraction.type === 'LIKE' || reciprocalInteraction.type === 'SUPERLIKE')) {
-                // Prevent duplicate match unlocks via string sort ordering or upsert
-                const [user1Id, user2Id] = [userId, targetId].sort();
-
-                await prisma.matchUnlock.upsert({
-                    where: {
-                        user1Id_user2Id: {
-                            user1Id: user1Id,
-                            user2Id: user2Id
-                        }
-                    },
-                    update: {},
-                    create: {
-                        user1Id: user1Id,
-                        user2Id: user2Id
-                    }
+            // Match Logic Calculation
+            if (type === 'LIKE' || type === 'SUPERLIKE') {
+                const reciprocalInteraction = await tx.interaction.findUnique({
+                    where: { actorId_targetId: { actorId: targetId, targetId: userId } }
                 });
 
-                return NextResponse.json({ message: 'It\'s a match!', matched: true, interaction }, { status: 201 });
+                if (reciprocalInteraction && (reciprocalInteraction.type === 'LIKE' || reciprocalInteraction.type === 'SUPERLIKE')) {
+                    isMatch = true;
+                    const [user1Id, user2Id] = [userId, targetId].sort();
+
+                    await tx.matchUnlock.upsert({
+                        where: { user1Id_user2Id: { user1Id: user1Id, user2Id: user2Id } },
+                        update: {},
+                        create: { user1Id: user1Id, user2Id: user2Id }
+                    });
+                }
             }
+            return inter;
+        });
+
+        if (isMatch) {
+            return NextResponse.json({ message: 'It\'s a match!', matched: true, interaction }, { status: 201 });
         }
 
         return NextResponse.json({ message: 'Interaction saved successfully', matched: false, interaction }, { status: 201 });

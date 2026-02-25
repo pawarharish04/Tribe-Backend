@@ -44,35 +44,38 @@ export function calculateInterestScore(
             const userLevel = userInterestMap.get(ti.interestId)?.level || 1;
             const targetLevel = ti.level || 1;
 
-            // Bonus for high mutual proficiency
+            // Bonus for high mutual proficiency, cap at a reasonable maximum to prevent runaway scores
             if (userLevel > 1 && targetLevel > 1) {
-                score += Math.min(userLevel, targetLevel) * 2;
+                score += Math.min(Math.min(userLevel, targetLevel) * 2, 10);
             }
             return;
         }
 
         // Parent-Child match (One user's interest is the parent of the other's)
         let matchedParentChild = false;
-        userInterests.forEach(ui => {
-            // If Target's parent is the User's exact interest, or User's parent is the Target's exact interest
+        for (const ui of userInterests) {
             if (ti.interest.parentId === ui.interestId || ui.interest.parentId === ti.interestId) {
                 score += 12;
                 matchedParentChild = true;
+                break; // Prevent double counting for the same target interest
             }
-        });
+        }
 
         if (matchedParentChild) return;
 
         // Same-Category match (Siblings sharing the same parent)
-        userInterests.forEach(ui => {
+        let matchedCategory = false;
+        for (const ui of userInterests) {
             if (
                 ti.interest.parentId &&
                 ui.interest.parentId &&
                 ti.interest.parentId === ui.interest.parentId
             ) {
                 score += 8;
+                matchedCategory = true;
+                break; // Prevent double counting sibling overlaps
             }
-        });
+        }
     });
 
     return score;
@@ -83,13 +86,13 @@ export function calculateInterestScore(
  * and penalizing it based on distance.
  */
 export function calculateFinalMatchScore(interestScore: number, distanceSq: number | null): number {
-    if (distanceSq === null) return interestScore; // No distance penalty if location is not a factor
+    if (distanceSq === null) return Math.max(0, interestScore); // No distance penalty if location is not a factor
 
     // Example penalty calculation:
     // Since 0.1 degree is ~11km, distanceSq for 11km is 0.01.
-    // We can derive a simple penalty multiplier.
-    // Here, every 0.01 distanceSq reduces score by 5 points.
-    const distancePenalty = (distanceSq / 0.01) * 5;
+    // We cap the maximum distance penalty so that exceptional interest matches 
+    // can still occasionally surface above very close zero-interest users.
+    const distancePenalty = Math.min((distanceSq / 0.01) * 5, 50); // Cap penalty at 50 points
 
-    return Math.max(0, interestScore - distancePenalty);
+    return Math.max(0, interestScore - distancePenalty); // Ensure negative scores are impossible
 }
