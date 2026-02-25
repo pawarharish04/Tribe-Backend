@@ -143,13 +143,15 @@ export async function GET(req: Request) {
         const paginatedFeed = sortedFeed.slice(0, 20);
 
         const endTime = performance.now();
-        console.log(JSON.stringify({
-            event: 'feed_generated',
-            durationMs: Math.round(endTime - startTime),
-            candidatesEvaluated: feedUsers.length,
-            returnedCount: paginatedFeed.length,
-            topScores: paginatedFeed.slice(0, 3).map(u => ({ id: u.id, finalScore: u._finalScore, interestScore: u._interestScore, distanceSq: u._distanceSq }))
-        }));
+        if (process.env.NODE_ENV !== 'production') {
+            console.log(JSON.stringify({
+                event: 'feed_generated',
+                durationMs: Math.round(endTime - startTime),
+                candidatesEvaluated: feedUsers.length,
+                returnedCount: paginatedFeed.length,
+                topScores: paginatedFeed.slice(0, 3).map(u => ({ id: u.id, finalScore: u._finalScore, interestScore: u._interestScore, distanceSq: u._distanceSq }))
+            }));
+        }
 
         return NextResponse.json({
             message: 'Geo feed fetched successfully',

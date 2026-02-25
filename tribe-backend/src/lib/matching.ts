@@ -38,16 +38,17 @@ export function calculateInterestScore(
     targetInterests.forEach(ti => {
         // Exact Match
         if (userInterestMap.has(ti.interestId)) {
-            score += 20;
+            const basePoints = 20;
 
             // Optional strength weight bonus if the user has a level defined
             const userLevel = userInterestMap.get(ti.interestId)?.level || 1;
             const targetLevel = ti.level || 1;
 
-            // Bonus for high mutual proficiency, cap at a reasonable maximum to prevent runaway scores
-            if (userLevel > 1 && targetLevel > 1) {
-                score += Math.min(Math.min(userLevel, targetLevel) * 2, 10);
-            }
+            // Bonus for high mutual proficiency using a multiplier
+            // e.g., level 3 mutual = 0.3 modifier -> 20 * 1.3 = 26
+            const strengthModifier = Math.min(userLevel, targetLevel) * 0.1;
+            score += basePoints * (1 + strengthModifier);
+
             return;
         }
 
@@ -78,7 +79,8 @@ export function calculateInterestScore(
         }
     });
 
-    return score;
+    // Enforce a ceiling so numerous interests don't explode the score
+    return Math.min(score, 100);
 }
 
 /**
@@ -90,9 +92,9 @@ export function calculateFinalMatchScore(interestScore: number, distanceSq: numb
 
     // Example penalty calculation:
     // Since 0.1 degree is ~11km, distanceSq for 11km is 0.01.
-    // We cap the maximum distance penalty so that exceptional interest matches 
-    // can still occasionally surface above very close zero-interest users.
-    const distancePenalty = Math.min((distanceSq / 0.01) * 5, 50); // Cap penalty at 50 points
+    // We cap the maximum distance penalty to 30 so that exceptional interest matches 
+    // can still inevitably surface above very close zero-interest users.
+    const distancePenalty = Math.min((distanceSq / 0.01) * 5, 30); // Cap penalty at 30 points
 
     return Math.max(0, interestScore - distancePenalty); // Ensure negative scores are impossible
 }

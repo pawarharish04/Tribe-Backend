@@ -47,22 +47,46 @@ describe('Match Scoring Engine', () => {
         // 5. Mixed interests (Exact + Category) do not double count.
         it('prevents double counting when multiple matching criteria exist', () => {
             // Target has 'A', User has 'A'. User also has 'B'(parent A), Target has 'B'(parent A).
-            // Should be 20 points for 'A' (exact), 20 points for 'B' (exact). 
+            // Should be 22 points for 'A' (exact level 1 cap = 20*1.1=22), 22 points for 'B' (exact). 
             // It should NOT add 12 points for B overlapping A (parent-child).
             const userInterests = [buildInterest('A', null), buildInterest('B', 'A')];
             const targetInterests = [buildInterest('A', null), buildInterest('B', 'A')];
             const score = calculateInterestScore(userInterests, targetInterests);
-            // 20 (for A level 1) + 20 (for B level 1)
-            expect(score).toBe(40);
+            // 22 (for A level 1) + 22 (for B level 1)
+            expect(score).toBe(44);
         });
 
         // 6. Target with no level defaults to level 1 logic.
         it('defaults to level 1 logic if target has no level', () => {
             const userInterests = [buildInterest('A', null, 5)];
             const targetInterests = [buildInterest('A', null, null)]; // no level
-            // level defaults to 1 so no bonus points
+            // level defaults to 1, min(5,1)=1 => 1 * 0.1 = 0.1 modifier => 20 * 1.1 = 22
             const score = calculateInterestScore(userInterests, targetInterests);
-            expect(score).toBe(20);
+            expect(score).toBe(22);
+        });
+
+        // 10. Hierarchy depth config correctly prioritizes Exact > Parent > Category.
+        it('hierarchy depth test prioritizes matches correctly', () => {
+            // Target has A (parent is zero), B (parent A), C (parent A)
+            // User matches A exactly. Wait, the exact match applies FIRST and returns for that target interest.
+            const userInterests = [buildInterest('A', null)];
+            const targetInterests = [buildInterest('A', null)];
+            const scoreExact = calculateInterestScore(userInterests, targetInterests);
+            expect(scoreExact).toBe(22); // Exact baseline min=1
+
+            const userIntParentChild = [buildInterest('B', 'A')];
+            const targetIntParentChild = [buildInterest('A', null)];
+            const scoreParent = calculateInterestScore(userIntParentChild, targetIntParentChild);
+            expect(scoreParent).toBe(12);
+
+            const userIntCategory = [buildInterest('C', 'A')];
+            const targetIntCategory = [buildInterest('B', 'A')];
+            const scoreCategory = calculateInterestScore(userIntCategory, targetIntCategory);
+            expect(scoreCategory).toBe(8);
+
+            // They should scale strictly: Exact > ParentChild > SameCategory
+            expect(scoreExact).toBeGreaterThan(scoreParent);
+            expect(scoreParent).toBeGreaterThan(scoreCategory);
         });
     });
 
@@ -81,9 +105,26 @@ describe('Match Scoring Engine', () => {
         });
 
         it('caps distance penalty to a maximum value, allowing exceptionally high base scores to survive', () => {
-            // max penalty is 50. Base score is 80.
+            // max penalty is 30. Base score is 80.
             const score = calculateFinalMatchScore(80, 100);
-            expect(score).toBe(30); // 80 - 50 = 30
+            expect(score).toBe(50); // 80 - 30 = 50
+        });
+
+        // 9. Distance does NOT dominate strong interest match.
+        it('ensures distance does NOT dominate strong interest match', () => {
+            // User A & B exact match (24 pts) at 50km (roughly distSq=0.25). Base: 24. Penalty caps at 30? Wait, (0.25/0.01)*5 = 125 -> capped at 30.
+            const strongBase = 60;
+            const dist50kmSq = 0.25;
+            const scoreAB = calculateFinalMatchScore(strongBase, dist50kmSq); // 60 - 30 = 30 points
+
+            // User A & C zero match at 1km (distSq=0.00). Base = 0.
+            const weakBase = 0;
+            const dist1kmSq = 0.00;
+            const scoreAC = calculateFinalMatchScore(weakBase, dist1kmSq); // 0 - 0 = 0 points
+
+            expect(scoreAB).toBe(30);
+            expect(scoreAC).toBe(0);
+            expect(scoreAB).toBeGreaterThan(scoreAC); // B confidently ranks above C!
         });
     });
 });
