@@ -12,3 +12,98 @@ generator client {
 datasource db {
   provider = "postgresql"
 }
+
+model User {
+  id        String   @id @default(uuid())
+  email     String   @unique
+  password  String
+  name      String?
+  
+  // Geo-location fields
+  latitude  Float?
+  longitude Float?
+  
+  interests UserInterest[]
+  
+  // Interactions where this user is the actor
+  sentInteractions Interaction[] @relation("ActorInteractions")
+  // Interactions where this user is the target
+  receivedInteractions Interaction[] @relation("TargetInteractions")
+
+  // Matches where this user is user1
+  matchesInitiated MatchUnlock[] @relation("MatchUser1")
+  // Matches where this user is user2
+  matchesReceived  MatchUnlock[] @relation("MatchUser2")
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Interest {
+  id          String   @id @default(uuid())
+  name        String   @unique
+  description String?
+  
+  // Hierarchical tree structure
+  parentId    String?
+  parent      Interest?  @relation("InterestHierarchy", fields: [parentId], references: [id])
+  children    Interest[] @relation("InterestHierarchy")
+
+  users       UserInterest[]
+  
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+// Join table for User and Interest (many-to-many with explicit model)
+model UserInterest {
+  id         String   @id @default(uuid())
+  userId     String
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  interestId String
+  interest   Interest @relation(fields: [interestId], references: [id], onDelete: Cascade)
+  
+  // Optional: weight or proficiency level
+  level      Int?     @default(1)
+
+  createdAt  DateTime @default(now())
+
+  @@unique([userId, interestId])
+}
+
+model Interaction {
+  id          String   @id @default(uuid())
+  
+  actorId     String
+  actor       User     @relation("ActorInteractions", fields: [actorId], references: [id], onDelete: Cascade)
+  
+  targetId    String
+  target      User     @relation("TargetInteractions", fields: [targetId], references: [id], onDelete: Cascade)
+  
+  type        InteractionType
+  
+  createdAt   DateTime @default(now())
+
+  // A user can typically only have one active interaction type towards another user
+  @@unique([actorId, targetId]) 
+}
+
+enum InteractionType {
+  LIKE
+  PASS
+  SUPERLIKE
+}
+
+model MatchUnlock {
+  id          String   @id @default(uuid())
+  
+  user1Id     String
+  user1       User     @relation("MatchUser1", fields: [user1Id], references: [id], onDelete: Cascade)
+  
+  user2Id     String
+  user2       User     @relation("MatchUser2", fields: [user2Id], references: [id], onDelete: Cascade)
+  
+  createdAt   DateTime @default(now())
+
+  @@unique([user1Id, user2Id])
+}

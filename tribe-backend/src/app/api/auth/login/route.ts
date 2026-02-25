@@ -1,0 +1,61 @@
+import { NextResponse } from 'next/server';
+import bcrypt from 'bcrypt';
+import jwt from 'jsonwebtoken';
+import { prisma } from '../../../../lib/prisma';
+
+export async function POST(req: Request) {
+    try {
+        const { email, password } = await req.json();
+
+        if (!email || !password) {
+            return NextResponse.json(
+                { error: 'Email and password are required' },
+                { status: 400 }
+            );
+        }
+
+        const user = await prisma.user.findUnique({
+            where: { email },
+        });
+
+        if (!user) {
+            return NextResponse.json(
+                { error: 'Invalid email or password' },
+                { status: 401 }
+            );
+        }
+
+        const isMatch = await bcrypt.compare(password, user.password);
+
+        if (!isMatch) {
+            return NextResponse.json(
+                { error: 'Invalid email or password' },
+                { status: 401 }
+            );
+        }
+
+        const secret = process.env.JWT_SECRET || 'default-secret-key';
+        const token = jwt.sign(
+            { userId: user.id },
+            secret,
+            { expiresIn: '7d' }
+        );
+
+        const { password: _, ...userWithoutPassword } = user;
+
+        return NextResponse.json(
+            {
+                message: 'Login successful',
+                user: userWithoutPassword,
+                token,
+            },
+            { status: 200 }
+        );
+    } catch (error) {
+        console.error('Login Error:', error);
+        return NextResponse.json(
+            { error: 'Internal server error' },
+            { status: 500 }
+        );
+    }
+}
