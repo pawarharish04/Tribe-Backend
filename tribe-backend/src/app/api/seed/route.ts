@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '../../../lib/prisma';
-import { calculateDistanceSq, calculateInterestScore, calculateFinalMatchScore } from '../../../lib/matching';
+import { calculateDistanceSq, calculateInterestScore, calculateFinalMatchScore, getDistanceFactor } from '../../../lib/matching';
 import jwt from 'jsonwebtoken';
 
 const NUM_USERS = 50;
@@ -140,13 +140,15 @@ export async function GET() {
 
             const breakdown = calculateInterestScore(testOriginUser.interests as any, u.interests as any);
             const finalScore = calculateFinalMatchScore(breakdown.score, distanceSq);
-            const distancePenalty = Math.max(0, breakdown.score - finalScore);
+
+            const distanceKm = distanceSq !== null ? Math.sqrt(distanceSq) * 111 : 0;
+            const distanceFactor = distanceSq !== null ? getDistanceFactor(distanceKm) : 1.0;
 
             return {
                 name: u.name,
-                approxKm: distanceSq !== null ? (Math.sqrt(distanceSq) * 111).toFixed(1) : '?',
+                approxKm: distanceSq !== null ? distanceKm.toFixed(1) : '?',
                 interestScore: breakdown.score,
-                distancePenalty: distancePenalty.toFixed(1),
+                distanceFactor: distanceFactor.toFixed(2),
                 finalScore: Math.round(finalScore),
                 exactMatches: breakdown.exactMatches,
                 interests: u.interests.map(i => i.interest.name).join(', ')

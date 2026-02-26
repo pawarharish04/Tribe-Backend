@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '../../../lib/prisma';
 import { getUserIdFromRequest } from '../../../lib/auth';
-import { calculateDistanceSq, calculateInterestScore, calculateFinalMatchScore } from '../../../lib/matching';
+import { calculateDistanceSq, calculateInterestScore, calculateFinalMatchScore, getDistanceFactor } from '../../../lib/matching';
 
 export async function GET(req: Request) {
     const startTime = performance.now();
@@ -129,14 +129,14 @@ export async function GET(req: Request) {
             // Calculate final composite Match Score
             const finalScore = calculateFinalMatchScore(interestScore, distanceSq);
 
-            // Distance Penalty Reverse Calculation
-            const distancePenalty = Math.max(0, interestScore - finalScore);
+            const distanceKm = distanceSq !== null ? Math.sqrt(distanceSq) * 111 : 0;
+            const distanceFactor = distanceSq !== null ? getDistanceFactor(distanceKm) : 1.0;
 
             return {
                 ...u,
                 _distanceSq: distanceSq,
                 _interestScore: interestScore,
-                _distancePenalty: distancePenalty,
+                _distanceFactor: distanceFactor,
                 _exactMatches: breakdown.exactMatches,
                 _parentChildMatches: breakdown.parentChildMatches,
                 _sameCategoryMatches: breakdown.sameCategoryMatches,
@@ -161,7 +161,7 @@ export async function GET(req: Request) {
                     id: u.id,
                     finalScore: u._finalScore,
                     interestScore: u._interestScore,
-                    distancePenalty: u._distancePenalty
+                    distanceFactor: u._distanceFactor
                 }))
             }));
         }

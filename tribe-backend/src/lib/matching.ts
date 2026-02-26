@@ -24,7 +24,7 @@ export interface InterestData {
 /**
  * Advanced Match Scoring Algorithm
  * 
- * score = (sharedExact × 20) + (parentChild × 12) + (sameCategory × 8) + (strengthWeight × multiplier)
+ * score = (sharedExact × 30) + (parentChild × 18) + (sameCategory × 12) + (strengthWeight × multiplier)
  */
 export interface ScoreBreakdown {
     score: number;
@@ -48,7 +48,7 @@ export function calculateInterestScore(
     targetInterests.forEach(ti => {
         // Exact Match
         if (userInterestMap.has(ti.interestId)) {
-            const basePoints = 20;
+            const basePoints = 30;
 
             // Optional strength weight bonus if the user has a level defined
             const userLevel = userInterestMap.get(ti.interestId)?.level || 1;
@@ -68,7 +68,7 @@ export function calculateInterestScore(
         let matchedParentChild = false;
         for (const ui of userInterests) {
             if (ti.interest.parentId === ui.interestId || ui.interest.parentId === ti.interestId) {
-                score += 12;
+                score += 18;
                 matchedParentChild = true;
                 parentChildMatches++;
                 break; // Prevent double counting for the same target interest
@@ -85,7 +85,7 @@ export function calculateInterestScore(
                 ui.interest.parentId &&
                 ti.interest.parentId === ui.interest.parentId
             ) {
-                score += 8;
+                score += 12;
                 matchedCategory = true;
                 sameCategoryMatches++;
                 break; // Prevent double counting sibling overlaps
@@ -102,18 +102,23 @@ export function calculateInterestScore(
     };
 }
 
+export function getDistanceFactor(distanceKm: number): number {
+    if (distanceKm <= 5) return 1.0;
+    if (distanceKm <= 20) return 0.9;
+    if (distanceKm <= 50) return 0.8;
+    if (distanceKm <= 100) return 0.7;
+    return 0.6;
+}
+
 /**
  * Calculates the final match score by taking the base interest score 
- * and penalizing it based on distance.
+ * and scaling it based on distance.
  */
 export function calculateFinalMatchScore(interestScore: number, distanceSq: number | null): number {
-    if (distanceSq === null) return Math.max(0, interestScore); // No distance penalty if location is not a factor
+    if (distanceSq === null) return Math.round(interestScore);
 
-    // Example penalty calculation:
-    // Since 0.1 degree is ~11km, distanceSq for 11km is 0.01.
-    // We cap the maximum distance penalty to 30 so that exceptional interest matches 
-    // can still inevitably surface above very close zero-interest users.
-    const distancePenalty = Math.min((distanceSq / 0.01) * 5, 30); // Cap penalty at 30 points
+    const distanceKm = Math.sqrt(distanceSq) * 111;
+    const distanceFactor = getDistanceFactor(distanceKm);
 
-    return Math.max(0, interestScore - distancePenalty); // Ensure negative scores are impossible
+    return Math.round(interestScore * distanceFactor);
 }

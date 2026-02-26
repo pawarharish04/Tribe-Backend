@@ -77,7 +77,7 @@ export default function DebugFeedPage() {
                                     <div><strong>Interest Score:</strong> {user._interestScore?.toFixed(2) ?? 'N/A'}</div>
 
                                     <div><strong>Parent-Child Matches:</strong> {user._parentChildMatches ?? 0}</div>
-                                    <div><strong>Distance Penalty:</strong> {user._distancePenalty?.toFixed(2) ?? 'N/A'}</div>
+                                    <div><strong>Distance Factor:</strong> {user._distanceFactor?.toFixed(2) ?? 'N/A'}</div>
 
                                     <div><strong>Category Matches:</strong> {user._sameCategoryMatches ?? 0}</div>
                                 </div>
