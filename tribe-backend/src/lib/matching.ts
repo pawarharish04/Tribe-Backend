@@ -108,8 +108,20 @@ export function getDistanceFactor(distanceKm: number): number {
     if (distanceKm <= 50) return 0.8;
     if (distanceKm <= 100) return 0.7;
     return 0.6;
+    return 0.6;
 }
 
+export function getActivityFactor(lastActiveAt: Date | undefined | null): number {
+    if (!lastActiveAt) return 0.9; // Fallback for old records without this set
+
+    const hoursSinceActive = (Date.now() - new Date(lastActiveAt).getTime()) / (1000 * 60 * 60);
+
+    if (hoursSinceActive <= 6) return 1.1;
+    if (hoursSinceActive <= 24) return 1.05;
+    if (hoursSinceActive <= 72) return 1.0;
+    if (hoursSinceActive <= 168) return 0.95;
+    return 0.9;
+}
 /**
  * Calculates the final match score by taking the base interest score 
  * and scaling it based on distance, and optionally boosting based on posts.
@@ -117,15 +129,18 @@ export function getDistanceFactor(distanceKm: number): number {
 export function calculateFinalMatchScore(
     interestScore: number,
     distanceSq: number | null,
-    sharedInterestPostsCount: number = 0
+    sharedInterestPostsCount: number = 0,
+    lastActiveAt?: Date | null
 ): number {
     const postBoost = Math.min(sharedInterestPostsCount * 2, 6);
     const boostedScore = Math.min(interestScore + postBoost, 100);
 
-    if (distanceSq === null) return Math.round(boostedScore);
+    const activityFactor = getActivityFactor(lastActiveAt);
+
+    if (distanceSq === null) return Math.min(Math.round(boostedScore * activityFactor), 100);
 
     const distanceKm = Math.sqrt(distanceSq) * 111;
     const distanceFactor = getDistanceFactor(distanceKm);
 
-    return Math.round(boostedScore * distanceFactor);
+    return Math.min(Math.round(boostedScore * distanceFactor * activityFactor), 100);
 }

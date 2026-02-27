@@ -71,15 +71,14 @@ export default function DebugFeedPage() {
                                 <h3 style={{ margin: "0 0 10px 0" }}>#{idx + 1} - {user.name}</h3>
                                 <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px", marginBottom: "10px" }}>
                                     <div><strong>Distance:</strong> {calculateApproxKm(user._distanceSq)} {user._distanceSq !== null ? 'km' : ''}</div>
-                                    <div><strong>Final Score:</strong> {user._finalScore?.toFixed(2) ?? 'N/A'}</div>
-
-                                    <div><strong>Exact Matches:</strong> {user._exactMatches ?? 0}</div>
-                                    <div><strong>Interest Score:</strong> {user._interestScore?.toFixed(2) ?? 'N/A'}</div>
-
-                                    <div><strong>Parent-Child Matches:</strong> {user._parentChildMatches ?? 0}</div>
-                                    <div><strong>Distance Factor:</strong> {user._distanceFactor?.toFixed(2) ?? 'N/A'}</div>
-
-                                    <div><strong>Category Matches:</strong> {user._sameCategoryMatches ?? 0}</div>
+                                    <div style={{ marginTop: "10px", fontSize: "12px", borderBottom: "1px solid #ccc", paddingBottom: "10px" }}>
+                                        <div><strong>Interest Match Base:</strong> {user._interestScore?.toFixed(2) ?? 'N/A'}</div>
+                                        <div><strong>Distance Factor:</strong> {user._distanceFactor?.toFixed(2) ?? 'N/A'}</div>
+                                        <div><strong>Activity Factor:</strong> {user._activityFactor?.toFixed(2) || "1.00"}</div>
+                                        <div><strong>Exact Matches:</strong> {user._exactMatches ?? 0}</div>
+                                        <div><strong>Parent-Child Matches:</strong> {user._parentChildMatches ?? 0}</div>
+                                        <div><strong>Category Matches:</strong> {user._sameCategoryMatches ?? 0}</div>
+                                    </div>
                                 </div>
 
                                 <div>
@@ -91,6 +90,12 @@ export default function DebugFeedPage() {
 
                                 <div style={{ marginTop: "10px" }}>
                                     <strong>Interest Posts ({user.interestPosts?.length ?? 0}):</strong>
+                                    <div style={{ marginTop: "10px" }}>
+                                        <strong>Final Score:</strong> <span style={{ fontSize: "18px", color: "green" }}>{user._finalScore?.toFixed(2) ?? 'N/A'}</span>
+                                        <span style={{ fontSize: "11px", color: "#666", marginLeft: "6px" }}>
+                                            ({user._interestScore?.toFixed(2) ?? 'N/A'} × dist:{user._distanceFactor?.toFixed(2) ?? 'N/A'} × act:{user._activityFactor?.toFixed(2) || "1.00"})
+                                        </span>
+                                    </div>
                                     {user.interestPosts && user.interestPosts.length > 0 ? (
                                         <div style={{ display: "flex", flexDirection: "column", gap: "6px", marginTop: "6px" }}>
                                             {user.interestPosts.map((post: any, pIdx: number) => (

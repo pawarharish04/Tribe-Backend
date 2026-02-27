@@ -166,16 +166,22 @@ export async function GET(req: Request) {
             const sharedInterestIds = new Set(currentUser.interests.map((ui: any) => ui.interestId));
             const sharedInterestPostsCount = u.interestPosts?.filter((post: any) => sharedInterestIds.has(post.interestId)).length || 0;
 
-            const finalScore = calculateFinalMatchScore(interestScore, distanceSq, sharedInterestPostsCount);
+            const finalScore = calculateFinalMatchScore(interestScore, distanceSq, sharedInterestPostsCount, u.lastActiveAt);
 
             const distanceKm = distanceSq !== null ? Math.sqrt(distanceSq) * 111 : 0;
             const distanceFactor = distanceSq !== null ? getDistanceFactor(distanceKm) : 1.0;
+
+            // Optional: Export activity factor for debugging/observability
+            const activityFactor = (u.lastActiveAt)
+                ? (require('../../../lib/matching').getActivityFactor)(u.lastActiveAt)
+                : 1.0;
 
             return {
                 ...u,
                 _distanceSq: distanceSq,
                 _interestScore: interestScore,
                 _distanceFactor: distanceFactor,
+                _activityFactor: activityFactor,
                 _exactMatches: breakdown.exactMatches,
                 _parentChildMatches: breakdown.parentChildMatches,
                 _sameCategoryMatches: breakdown.sameCategoryMatches,
@@ -206,6 +212,12 @@ export async function GET(req: Request) {
                 })
             ));
         }
+
+        // Update current user's lastActiveAt in a background task
+        prisma.user.update({
+            where: { id: userId },
+            data: { lastActiveAt: new Date() }
+        }).catch(err => console.error("Failed to update lastActiveAt", err));
 
         const endTime = performance.now();
         if (process.env.NODE_ENV !== 'production') {

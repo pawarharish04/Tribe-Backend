@@ -41,7 +41,13 @@ export async function POST(req: Request) {
             { expiresIn: '7d' }
         );
 
-        const { password: _, ...userWithoutPassword } = user;
+        // Update lastActiveAt on successful login
+        const updatedUser = await prisma.user.update({
+            where: { id: user.id },
+            data: { lastActiveAt: new Date() }
+        });
+
+        const { password: _, ...userWithoutPassword } = updatedUser;
 
         return NextResponse.json(
             {
