@@ -34,6 +34,9 @@ model User {
   // Matches where this user is user2
   matchesReceived  MatchUnlock[] @relation("MatchUser2")
 
+  media            Media[]
+  interestPosts    InterestPost[]
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -51,6 +54,7 @@ model Interest {
   children Interest[] @relation("InterestHierarchy")
 
   users UserInterest[]
+  posts InterestPost[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -111,4 +115,33 @@ model MatchUnlock {
   createdAt DateTime @default(now())
 
   @@unique([user1Id, user2Id])
+}
+
+model Media {
+  id        String   @id @default(uuid())
+  userId    String
+  url       String
+  type      String   // image | video
+  width     Int?
+  height    Int?
+  createdAt DateTime @default(now())
+
+  user          User           @relation(fields: [userId], references: [id])
+  interestPosts InterestPost[]
+}
+
+model InterestPost {
+  id          String   @id @default(uuid())
+  userId      String
+  interestId  String
+  mediaId     String?
+  caption     String?
+  createdAt   DateTime @default(now())
+
+  user      User     @relation(fields: [userId], references: [id])
+  interest  Interest @relation(fields: [interestId], references: [id])
+  media     Media?   @relation(fields: [mediaId], references: [id])
+
+  @@index([userId])
+  @@index([interestId])
 }
