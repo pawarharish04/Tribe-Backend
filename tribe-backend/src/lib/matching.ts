@@ -112,13 +112,20 @@ export function getDistanceFactor(distanceKm: number): number {
 
 /**
  * Calculates the final match score by taking the base interest score 
- * and scaling it based on distance.
+ * and scaling it based on distance, and optionally boosting based on posts.
  */
-export function calculateFinalMatchScore(interestScore: number, distanceSq: number | null): number {
-    if (distanceSq === null) return Math.round(interestScore);
+export function calculateFinalMatchScore(
+    interestScore: number,
+    distanceSq: number | null,
+    sharedInterestPostsCount: number = 0
+): number {
+    const postBoost = Math.min(sharedInterestPostsCount * 2, 6);
+    const boostedScore = Math.min(interestScore + postBoost, 100);
+
+    if (distanceSq === null) return Math.round(boostedScore);
 
     const distanceKm = Math.sqrt(distanceSq) * 111;
     const distanceFactor = getDistanceFactor(distanceKm);
 
-    return Math.round(interestScore * distanceFactor);
+    return Math.round(boostedScore * distanceFactor);
 }

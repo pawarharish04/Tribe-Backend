@@ -36,6 +36,8 @@ model User {
 
   media            Media[]
   interestPosts    InterestPost[]
+  viewerImpressions FeedImpression[] @relation("ViewerImpressions")
+  targetImpressions FeedImpression[] @relation("TargetImpressions")
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -144,4 +146,17 @@ model InterestPost {
 
   @@index([userId])
   @@index([interestId])
+}
+
+model FeedImpression {
+  id        String   @id @default(uuid())
+  viewerId  String
+  targetId  String
+  shownAt   DateTime @default(now())
+
+  viewer    User @relation("ViewerImpressions", fields: [viewerId], references: [id])
+  target    User @relation("TargetImpressions", fields: [targetId], references: [id])
+
+  @@unique([viewerId, targetId])
+  @@index([viewerId])
 }

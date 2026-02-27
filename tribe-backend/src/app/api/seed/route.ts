@@ -125,6 +125,14 @@ export async function GET() {
                         level: true,
                         interest: { select: { name: true, parentId: true } }
                     }
+                },
+                interestPosts: {
+                    take: 3,
+                    orderBy: { createdAt: 'desc' },
+                    include: {
+                        interest: { select: { id: true, name: true } },
+                        media: { select: { id: true, url: true, type: true } }
+                    }
                 }
             }
         });
@@ -139,7 +147,11 @@ export async function GET() {
             }
 
             const breakdown = calculateInterestScore(testOriginUser.interests as any, u.interests as any);
-            const finalScore = calculateFinalMatchScore(breakdown.score, distanceSq);
+
+            const sharedInterestIds = new Set(testOriginUser.interests.map((ui: any) => ui.interestId));
+            const sharedInterestPostsCount = (u as any).interestPosts?.filter((post: any) => sharedInterestIds.has(post.interestId)).length || 0;
+
+            const finalScore = calculateFinalMatchScore(breakdown.score, distanceSq, sharedInterestPostsCount);
 
             const distanceKm = distanceSq !== null ? Math.sqrt(distanceSq) * 111 : 0;
             const distanceFactor = distanceSq !== null ? getDistanceFactor(distanceKm) : 1.0;

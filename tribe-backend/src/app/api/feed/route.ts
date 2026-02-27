@@ -53,77 +53,91 @@ export async function GET(req: Request) {
         ignoredUserIds.push(userId); // Add self to neglected list
 
         // 3. Prepare the feed pool
-        let feedUsers: any[] = [];
         const hasLocation = currentUser.latitude !== null && currentUser.longitude !== null;
 
-        if (hasLocation) {
-            // 3A. User HAS location -> Perform Geo-Bounded search
-            const latSpan = 0.5; // ~55km bounding radius
-            const lonSpan = 0.5;
+        const fetchCandidates = async (ignoreImpressions: boolean) => {
+            const baseWhere: any = { id: { notIn: ignoredUserIds } };
+            if (!ignoreImpressions) {
+                baseWhere.NOT = {
+                    targetImpressions: {
+                        some: { viewerId: userId }
+                    }
+                };
+            }
 
-            const minLat = currentUser.latitude! - latSpan;
-            const maxLat = currentUser.latitude! + latSpan;
-            const minLon = currentUser.longitude! - lonSpan;
-            const maxLon = currentUser.longitude! + lonSpan;
+            if (hasLocation) {
+                // 3A. User HAS location -> Perform Geo-Bounded search
+                const latSpan = 0.5; // ~55km bounding radius
+                const lonSpan = 0.5;
 
-            feedUsers = await prisma.user.findMany({
-                where: {
-                    id: { notIn: ignoredUserIds },
-                    latitude: { gte: minLat, lte: maxLat },
-                    longitude: { gte: minLon, lte: maxLon },
-                },
-                select: {
-                    id: true,
-                    name: true,
-                    latitude: true,
-                    longitude: true,
-                    interests: {
-                        select: {
-                            interestId: true,
-                            level: true,
-                            interest: { select: { name: true, parentId: true } }
+                const minLat = currentUser.latitude! - latSpan;
+                const maxLat = currentUser.latitude! + latSpan;
+                const minLon = currentUser.longitude! - lonSpan;
+                const maxLon = currentUser.longitude! + lonSpan;
+
+                return await prisma.user.findMany({
+                    where: {
+                        ...baseWhere,
+                        latitude: { gte: minLat, lte: maxLat },
+                        longitude: { gte: minLon, lte: maxLon },
+                    },
+                    select: {
+                        id: true,
+                        name: true,
+                        latitude: true,
+                        longitude: true,
+                        interests: {
+                            select: {
+                                interestId: true,
+                                level: true,
+                                interest: { select: { name: true, parentId: true } }
+                            }
+                        },
+                        interestPosts: {
+                            take: 3,
+                            orderBy: { createdAt: 'desc' },
+                            include: {
+                                interest: { select: { id: true, name: true } },
+                                media: { select: { id: true, url: true, type: true } }
+                            }
                         }
                     },
-                    interestPosts: {
-                        take: 3,
-                        orderBy: { createdAt: 'desc' },
-                        include: {
-                            interest: { select: { id: true, name: true } },
-                            media: { select: { id: true, url: true, type: true } }
-                        }
-                    }
-                },
-                take: 100 // larger pool to calculate scores against
-            });
-        } else {
-            // 3B. User has NO location -> Perform Global Search ignoring distance (Fallback Feed for resilience)
-            feedUsers = await prisma.user.findMany({
-                where: {
-                    id: { notIn: ignoredUserIds },
-                },
-                select: {
-                    id: true,
-                    name: true,
-                    latitude: true,
-                    longitude: true,
-                    interests: {
-                        select: {
-                            interestId: true,
-                            level: true,
-                            interest: { select: { name: true, parentId: true } }
+                    take: 100 // larger pool to calculate scores against
+                });
+            } else {
+                // 3B. User has NO location -> Perform Global Search ignoring distance (Fallback Feed for resilience)
+                return await prisma.user.findMany({
+                    where: baseWhere,
+                    select: {
+                        id: true,
+                        name: true,
+                        latitude: true,
+                        longitude: true,
+                        interests: {
+                            select: {
+                                interestId: true,
+                                level: true,
+                                interest: { select: { name: true, parentId: true } }
+                            }
+                        },
+                        interestPosts: {
+                            take: 3,
+                            orderBy: { createdAt: 'desc' },
+                            include: {
+                                interest: { select: { id: true, name: true } },
+                                media: { select: { id: true, url: true, type: true } }
+                            }
                         }
                     },
-                    interestPosts: {
-                        take: 3,
-                        orderBy: { createdAt: 'desc' },
-                        include: {
-                            interest: { select: { id: true, name: true } },
-                            media: { select: { id: true, url: true, type: true } }
-                        }
-                    }
-                },
-                take: 100
-            });
+                    take: 100
+                });
+            }
+        };
+
+        let feedUsers = await fetchCandidates(false);
+        if (feedUsers.length === 0) {
+            // fallback: ignore impressions filter
+            feedUsers = await fetchCandidates(true);
         }
 
         // 4. Calculate Scores and Sort
@@ -142,8 +156,12 @@ export async function GET(req: Request) {
             const breakdown = calculateInterestScore(currentUser.interests as any, u.interests as any);
             const interestScore = breakdown.score;
 
-            // Calculate final composite Match Score
-            const finalScore = calculateFinalMatchScore(interestScore, distanceSq);
+            // Calculate final composite Match Score with post boost
+            // To evaluate shared posts, we count how many of the candidate's 'interestPosts' have an interestId that's present in currentUser's interests
+            const sharedInterestIds = new Set(currentUser.interests.map((ui: any) => ui.interestId));
+            const sharedInterestPostsCount = u.interestPosts?.filter((post: any) => sharedInterestIds.has(post.interestId)).length || 0;
+
+            const finalScore = calculateFinalMatchScore(interestScore, distanceSq, sharedInterestPostsCount);
 
             const distanceKm = distanceSq !== null ? Math.sqrt(distanceSq) * 111 : 0;
             const distanceFactor = distanceSq !== null ? getDistanceFactor(distanceKm) : 1.0;
@@ -165,6 +183,16 @@ export async function GET(req: Request) {
 
         // 5. Return top 20
         const paginatedFeed = sortedFeed.slice(0, 20);
+
+        if (paginatedFeed.length > 0) {
+            await prisma.feedImpression.createMany({
+                data: paginatedFeed.map(c => ({
+                    viewerId: userId,
+                    targetId: c.id
+                })),
+                skipDuplicates: true
+            });
+        }
 
         const endTime = performance.now();
         if (process.env.NODE_ENV !== 'production') {
