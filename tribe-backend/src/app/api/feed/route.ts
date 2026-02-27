@@ -83,6 +83,14 @@ export async function GET(req: Request) {
                             level: true,
                             interest: { select: { name: true, parentId: true } }
                         }
+                    },
+                    interestPosts: {
+                        take: 3,
+                        orderBy: { createdAt: 'desc' },
+                        include: {
+                            interest: { select: { id: true, name: true } },
+                            media: { select: { id: true, url: true, type: true } }
+                        }
                     }
                 },
                 take: 100 // larger pool to calculate scores against
@@ -103,6 +111,14 @@ export async function GET(req: Request) {
                             interestId: true,
                             level: true,
                             interest: { select: { name: true, parentId: true } }
+                        }
+                    },
+                    interestPosts: {
+                        take: 3,
+                        orderBy: { createdAt: 'desc' },
+                        include: {
+                            interest: { select: { id: true, name: true } },
+                            media: { select: { id: true, url: true, type: true } }
                         }
                     }
                 },

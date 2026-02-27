@@ -88,6 +88,30 @@ export default function DebugFeedPage() {
                                         {JSON.stringify(user.interests, null, 2)}
                                     </pre>
                                 </div>
+
+                                <div style={{ marginTop: "10px" }}>
+                                    <strong>Interest Posts ({user.interestPosts?.length ?? 0}):</strong>
+                                    {user.interestPosts && user.interestPosts.length > 0 ? (
+                                        <div style={{ display: "flex", flexDirection: "column", gap: "6px", marginTop: "6px" }}>
+                                            {user.interestPosts.map((post: any, pIdx: number) => (
+                                                <div key={pIdx} style={{ background: "#eee", padding: "8px", borderRadius: "4px", fontSize: "12px", border: "1px solid #ddd" }}>
+                                                    <div><strong>#{pIdx + 1}</strong> — Interest: <em>{post.interest?.name ?? post.interestId}</em></div>
+                                                    {post.caption && <div style={{ color: "#555", marginTop: "2px" }}>"{post.caption}"</div>}
+                                                    {post.media && (
+                                                        <div style={{ marginTop: "4px" }}>
+                                                            <span style={{ color: "#888" }}>[{post.media.type}]</span>{" "}
+                                                            <a href={post.media.url} target="_blank" rel="noopener noreferrer" style={{ color: "#007bff", wordBreak: "break-all" }}>
+                                                                {post.media.url}
+                                                            </a>
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            ))}
+                                        </div>
+                                    ) : (
+                                        <span style={{ color: "#888", fontSize: "12px", marginLeft: "8px" }}>No posts yet</span>
+                                    )}
+                                </div>
                             </div>
                         ))}
                     </div>
