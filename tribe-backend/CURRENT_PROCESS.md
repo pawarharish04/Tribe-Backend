@@ -44,7 +44,7 @@ A highly tuned three-layered scoring system (capped at 100 points) that ranks ca
 The feed pipeline executes in a heavily optimized manner:
 - Checks if the user has baseline interests.
 - Fetches candidate pools from the database excluding past explicit interactions (`Interaction`).
-- Filters out already exposed candidates (`FeedImpression`), preventing staleness.
+- Filters out already exposed candidates (`FeedImpression`) within the **last 48 hours**, preventing immediate staleness while creating a soft re-introduction cycle over time.
 - Performs a highly specific bounding-box geo-search (`~55km` radius) if the user has GPS coordinates; otherwise, executes a global fallback.
 - Enriches the fetched candidates with their latest 3 `InterestPosts` in a **single nested Prisma query** to avoid N+1 retrieval problems.
 - Iterates candidates, calculates their exact similarity distances and interest overlap using the Matching Engine.

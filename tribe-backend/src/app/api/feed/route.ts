@@ -60,7 +60,12 @@ export async function GET(req: Request) {
             if (!ignoreImpressions) {
                 baseWhere.NOT = {
                     targetImpressions: {
-                        some: { viewerId: userId }
+                        some: {
+                            viewerId: userId,
+                            shownAt: {
+                                gte: new Date(Date.now() - 48 * 60 * 60 * 1000)
+                            }
+                        }
                     }
                 };
             }
@@ -185,13 +190,21 @@ export async function GET(req: Request) {
         const paginatedFeed = sortedFeed.slice(0, 20);
 
         if (paginatedFeed.length > 0) {
-            await prisma.feedImpression.createMany({
-                data: paginatedFeed.map(c => ({
-                    viewerId: userId,
-                    targetId: c.id
-                })),
-                skipDuplicates: true
-            });
+            await Promise.all(paginatedFeed.map(c =>
+                prisma.feedImpression.upsert({
+                    where: {
+                        viewerId_targetId: {
+                            viewerId: userId,
+                            targetId: c.id
+                        }
+                    },
+                    update: { shownAt: new Date() },
+                    create: {
+                        viewerId: userId,
+                        targetId: c.id
+                    }
+                })
+            ));
         }
 
         const endTime = performance.now();

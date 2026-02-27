@@ -154,8 +154,8 @@ model FeedImpression {
   targetId  String
   shownAt   DateTime @default(now())
 
-  viewer    User @relation("ViewerImpressions", fields: [viewerId], references: [id])
-  target    User @relation("TargetImpressions", fields: [targetId], references: [id])
+  viewer    User @relation("ViewerImpressions", fields: [viewerId], references: [id], onDelete: Cascade)
+  target    User @relation("TargetImpressions", fields: [targetId], references: [id], onDelete: Cascade)
 
   @@unique([viewerId, targetId])
   @@index([viewerId])
