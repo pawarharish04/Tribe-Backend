@@ -39,6 +39,13 @@ A highly tuned three-layered scoring system (capped at 100 points) that ranks ca
         -   `<= 50km`: `0.8x`
         -   `<= 100km`: `0.7x`
         -   `> 100km`: `0.6x` (Global baseline)
+4.  **Recency Weighting (Activity Factor)**:
+    -   To prevent inactive zombie accounts from dominating the top of the feed, scores are further multiplied based on `lastActiveAt`:
+        -   `<= 6 hours`: `1.10x` (+10% boost for hyper-active users)
+        -   `<= 24 hours`: `1.05x`
+        -   `<= 72 hours`: `1.00x` (Neutral)
+        -   `<= 168 hours` (1 week): `0.95x` (Decay begins)
+        -   `> 1 week`: `0.90x` (Maximum penalty)
 
 ### 3. Progressive Feed Generation (`/api/feed`)
 The feed pipeline executes in a heavily optimized manner:
