@@ -210,39 +210,7 @@ export default function MatchesPage() {
             display: 'flex',
             flexDirection: 'column',
         }}>
-            {/* Top Nav (Reused component ideal later, direct for now) */}
-            <header style={{
-                position: 'sticky', top: 0, zIndex: 100,
-                borderBottom: '1px solid var(--border)', background: 'rgba(12,12,14,0.9)',
-                backdropFilter: 'blur(16px)', padding: '0 24px', height: '56px',
-                display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-            }}>
-                <Link href="/feed" style={{ display: 'flex', alignItems: 'center', gap: '10px', textDecoration: 'none' }}>
-                    <div style={{
-                        width: '28px', height: '28px', borderRadius: '8px',
-                        background: 'var(--accent)', display: 'flex', alignItems: 'center',
-                        justifyContent: 'center', fontSize: '14px', fontWeight: 700, color: '#fff',
-                    }}>T</div>
-                    <span style={{ fontWeight: 600, fontSize: '16px', letterSpacing: '-0.02em', color: '#fff' }}>Tribe</span>
-                </Link>
-                <nav style={{ display: 'flex', gap: '4px' }}>
-                    {[
-                        { label: 'Feed', href: '/feed' },
-                        { label: 'Matches', href: '/matches' },
-                        { label: 'Activity', href: '/activity' },
-                    ].map(item => (
-                        <Link key={item.label} href={item.href} style={{
-                            padding: '6px 14px', borderRadius: '8px', fontSize: '13px', fontWeight: 500,
-                            textDecoration: 'none',
-                            color: item.href === '/matches' ? 'var(--accent)' : 'var(--text-secondary)',
-                            background: item.href === '/matches' ? 'var(--accent-soft)' : 'transparent',
-                            transition: 'var(--transition)',
-                        }}>
-                            {item.label}
-                        </Link>
-                    ))}
-                </nav>
-            </header>
+
 
             <main style={{ flex: 1, maxWidth: '640px', width: '100%', margin: '0 auto', padding: '32px 20px 80px' }}>
                 <div style={{ marginBottom: '24px' }}>
