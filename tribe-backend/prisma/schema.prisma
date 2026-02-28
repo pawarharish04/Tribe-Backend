@@ -34,14 +34,14 @@ model User {
   // Matches where this user is user2
   matchesReceived  MatchUnlock[] @relation("MatchUser2")
 
-  media            Media[]
-  interestPosts    InterestPost[]
+  media             Media[]
+  interestPosts     InterestPost[]
   viewerImpressions FeedImpression[] @relation("ViewerImpressions")
   targetImpressions FeedImpression[] @relation("TargetImpressions")
 
   lastActiveAt DateTime @default(now())
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
 
   @@index([latitude, longitude])
 }
@@ -126,7 +126,7 @@ model Media {
   id        String   @id @default(uuid())
   userId    String
   url       String
-  type      String   // image | video
+  type      String // image | video
   width     Int?
   height    Int?
   createdAt DateTime @default(now())
@@ -136,29 +136,29 @@ model Media {
 }
 
 model InterestPost {
-  id          String   @id @default(uuid())
-  userId      String
-  interestId  String
-  mediaId     String?
-  caption     String?
-  createdAt   DateTime @default(now())
+  id         String   @id @default(uuid())
+  userId     String
+  interestId String
+  mediaId    String?
+  caption    String?
+  createdAt  DateTime @default(now())
 
-  user      User     @relation(fields: [userId], references: [id])
-  interest  Interest @relation(fields: [interestId], references: [id])
-  media     Media?   @relation(fields: [mediaId], references: [id])
+  user     User     @relation(fields: [userId], references: [id])
+  interest Interest @relation(fields: [interestId], references: [id])
+  media    Media?   @relation(fields: [mediaId], references: [id])
 
   @@index([userId])
   @@index([interestId])
 }
 
 model FeedImpression {
-  id        String   @id @default(uuid())
-  viewerId  String
-  targetId  String
-  shownAt   DateTime @default(now())
+  id       String   @id @default(uuid())
+  viewerId String
+  targetId String
+  shownAt  DateTime @default(now())
 
-  viewer    User @relation("ViewerImpressions", fields: [viewerId], references: [id], onDelete: Cascade)
-  target    User @relation("TargetImpressions", fields: [targetId], references: [id], onDelete: Cascade)
+  viewer User @relation("ViewerImpressions", fields: [viewerId], references: [id], onDelete: Cascade)
+  target User @relation("TargetImpressions", fields: [targetId], references: [id], onDelete: Cascade)
 
   @@unique([viewerId, targetId])
   @@index([viewerId])
