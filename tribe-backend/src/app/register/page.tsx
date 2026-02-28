@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 
@@ -9,12 +9,43 @@ export default function RegisterPage() {
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [name, setName] = useState('');
+
+    // Interest tracking
+    const [availableInterests, setAvailableInterests] = useState<{ id: string, name: string }[]>([]);
+    const [selectedInterests, setSelectedInterests] = useState<string[]>([]);
+
     const [error, setError] = useState('');
     const [loading, setLoading] = useState(false);
+
+    // Fetch trending foundation interests
+    useEffect(() => {
+        fetch('/api/interests')
+            .then(res => res.json())
+            .then(data => {
+                if (Array.isArray(data)) {
+                    setAvailableInterests(data);
+                }
+            })
+            .catch(() => console.error("Could not load initial interests."));
+    }, []);
+
+    const toggleInterest = (interestName: string) => {
+        if (selectedInterests.includes(interestName)) {
+            setSelectedInterests(prev => prev.filter(i => i !== interestName));
+        } else {
+            setSelectedInterests(prev => [...prev, interestName]);
+        }
+    };
 
     const handleRegister = async (e: React.FormEvent) => {
         e.preventDefault();
         setError('');
+
+        if (selectedInterests.length < 3) {
+            setError('Please select at least 3 distinct interests to structure your network.');
+            return;
+        }
+
         setLoading(true);
 
         try {
@@ -35,7 +66,14 @@ export default function RegisterPage() {
             const res = await fetch('/api/auth/register', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ email, password, name, latitude, longitude })
+                body: JSON.stringify({
+                    email,
+                    password,
+                    name,
+                    latitude,
+                    longitude,
+                    interests: selectedInterests // Transmitting selection directly to resolver
+                })
             });
 
             const data = await res.json();
@@ -64,7 +102,7 @@ export default function RegisterPage() {
         }}>
             <div style={{
                 background: 'var(--bg-card)', padding: '48px', borderRadius: 'var(--radius)',
-                border: '1px solid var(--border)', maxWidth: '400px', width: '100%',
+                border: '1px solid var(--border)', maxWidth: '500px', width: '100%',
                 boxShadow: 'var(--shadow)'
             }}>
                 <div style={{ textAlign: 'center', marginBottom: '32px' }}>
@@ -105,6 +143,44 @@ export default function RegisterPage() {
                             background: 'rgba(255,255,255,0.03)', color: '#fff', fontSize: '15px', outline: 'none',
                         }} />
 
+                    {/* Interest Gateway Block */}
+                    <div style={{ marginTop: '12px' }}>
+                        <div style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text-primary)', marginBottom: '12px', display: 'flex', justifyContent: 'space-between' }}>
+                            <span>Select Your Interests</span>
+                            <span style={{ color: selectedInterests.length >= 3 ? 'var(--green)' : 'var(--text-muted)' }}>
+                                {selectedInterests.length}/3 Required
+                            </span>
+                        </div>
+
+                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', maxHeight: '140px', overflowY: 'auto', paddingRight: '4px' }}>
+                            {availableInterests.length > 0 ? availableInterests.map(interest => {
+                                const isSelected = selectedInterests.includes(interest.name);
+                                return (
+                                    <button
+                                        key={interest.id}
+                                        type="button"
+                                        onClick={() => toggleInterest(interest.name)}
+                                        style={{
+                                            padding: '8px 16px',
+                                            borderRadius: '100px',
+                                            fontSize: '13px',
+                                            fontWeight: 500,
+                                            border: `1px solid ${isSelected ? 'var(--accent)' : 'var(--border)'}`,
+                                            background: isSelected ? 'var(--accent-soft)' : 'rgba(255,255,255,0.02)',
+                                            color: isSelected ? 'var(--accent)' : 'var(--text-secondary)',
+                                            cursor: 'pointer',
+                                            transition: 'var(--transition)'
+                                        }}
+                                    >
+                                        {interest.name}
+                                    </button>
+                                );
+                            }) : (
+                                <div style={{ fontSize: '13px', color: 'var(--text-muted)' }}>Loading network traits...</div>
+                            )}
+                        </div>
+                    </div>
+
                     <button type="submit" disabled={loading} style={{
                         marginTop: '12px', padding: '16px', borderRadius: '100px', background: 'var(--accent)',
                         color: '#fff', fontSize: '16px', fontWeight: 600, border: 'none', cursor: loading ? 'not-allowed' : 'pointer',
@@ -112,8 +188,9 @@ export default function RegisterPage() {
                     }}>
                         {loading ? 'Creating account...' : 'Create Account'}
                     </button>
+
                     <div style={{ textAlign: 'center', marginTop: '12px', fontSize: '12px', color: 'rgba(255,255,255,0.3)' }}>
-                        Location access is requested on creation for Discovery routing.
+                        Location access is requested on creation to establish routing proximity.
                     </div>
                 </form>
 

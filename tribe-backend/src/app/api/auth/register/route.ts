@@ -5,7 +5,14 @@ import { prisma } from '../../../../lib/prisma';
 
 export async function POST(req: Request) {
     try {
-        const { email, password, name, latitude, longitude } = await req.json();
+        const { email, password, name, latitude, longitude, interests } = await req.json();
+
+        if (!interests || !Array.isArray(interests) || interests.length < 3) {
+            return NextResponse.json(
+                { error: 'Please select at least 3 interests to build your network.' },
+                { status: 400 }
+            );
+        }
 
         if (!email || !password) {
             return NextResponse.json(
@@ -29,6 +36,15 @@ export async function POST(req: Request) {
         // Hash the password
         const hashedPassword = await bcrypt.hash(password, 10);
 
+        // Resolve globally tracked interests, incrementing ranking usage metrics
+        const dbInterests = await Promise.all(
+            interests.map((iName: string) => prisma.interest.upsert({
+                where: { name: iName },
+                update: { usageCount: { increment: 1 } },
+                create: { name: iName, usageCount: 1 }
+            }))
+        );
+
         // Create the user
         const newUser = await prisma.user.create({
             data: {
@@ -37,6 +53,9 @@ export async function POST(req: Request) {
                 name,
                 latitude,
                 longitude,
+                interests: {
+                    create: dbInterests.map(i => ({ interestId: i.id }))
+                }
             },
         });
 

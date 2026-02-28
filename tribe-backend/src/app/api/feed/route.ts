@@ -105,6 +105,7 @@ export async function GET(req: Request) {
                         name: true,
                         latitude: true,
                         longitude: true,
+                        lastActiveAt: true,
                         interests: {
                             select: {
                                 interestId: true,
@@ -132,6 +133,7 @@ export async function GET(req: Request) {
                         name: true,
                         latitude: true,
                         longitude: true,
+                        lastActiveAt: true,
                         interests: {
                             select: {
                                 interestId: true,
@@ -175,7 +177,7 @@ export async function GET(req: Request) {
         );
 
         // 5. Calculate Scores and Sort
-        const sortedFeed = feedUsers.map(u => {
+        const sortedFeed = feedUsers.map((u: any) => {
             let distanceSq: number | null = null;
 
             // Calculate distance if both users have location
