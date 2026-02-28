@@ -16,16 +16,17 @@ async function verifyMatchMember(matchId: string, userId: string) {
 
 export async function GET(
     req: Request,
-    { params }: { params: { id: string } }
+    { params }: { params: Promise<{ id: string }> }
 ) {
     const userId = getUserIdFromRequest(req);
     if (!userId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
-    const match = await verifyMatchMember(params.id, userId);
+    const { id: matchId } = await params;
+    const match = await verifyMatchMember(matchId, userId);
     if (!match) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
 
     const messages = await prisma.message.findMany({
-        where: { matchId: params.id },
+        where: { matchId },
         orderBy: { createdAt: 'asc' },
         select: {
             id: true,
@@ -42,12 +43,13 @@ export async function GET(
 
 export async function POST(
     req: Request,
-    { params }: { params: { id: string } }
+    { params }: { params: Promise<{ id: string }> }
 ) {
     const userId = getUserIdFromRequest(req);
     if (!userId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
-    const match = await verifyMatchMember(params.id, userId);
+    const { id: matchId } = await params;
+    const match = await verifyMatchMember(matchId, userId);
     if (!match) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
 
     const { content } = await req.json();
@@ -61,7 +63,7 @@ export async function POST(
 
     const message = await prisma.message.create({
         data: {
-            matchId: params.id,
+            matchId,
             senderId: userId,
             content: content.trim(),
         },
