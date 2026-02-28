@@ -1,6 +1,8 @@
 'use client';
 
 import { useState, useCallback, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 
 // Using types defined from API
 interface MatchPayload {
@@ -196,24 +198,25 @@ export default function MatchesPage() {
                 backdropFilter: 'blur(16px)', padding: '0 24px', height: '56px',
                 display: 'flex', alignItems: 'center', justifyContent: 'space-between',
             }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <Link href="/feed" style={{ display: 'flex', alignItems: 'center', gap: '10px', textDecoration: 'none' }}>
                     <div style={{
                         width: '28px', height: '28px', borderRadius: '8px',
                         background: 'var(--accent)', display: 'flex', alignItems: 'center',
                         justifyContent: 'center', fontSize: '14px', fontWeight: 700, color: '#fff',
                     }}>T</div>
-                    <span style={{ fontWeight: 600, fontSize: '16px', letterSpacing: '-0.02em' }}>Tribe</span>
-                </div>
+                    <span style={{ fontWeight: 600, fontSize: '16px', letterSpacing: '-0.02em', color: '#fff' }}>Tribe</span>
+                </Link>
                 <nav style={{ display: 'flex', gap: '4px' }}>
-                    {['Feed', 'Matches', 'Profile'].map((item, i) => (
-                        <a key={item} href={`/${item.toLowerCase()}`} style={{
+                    {['Feed', 'Matches'].map((item, i) => (
+                        <Link key={item} href={`/${item.toLowerCase()}`} style={{
                             padding: '6px 14px', borderRadius: '8px', fontSize: '13px', fontWeight: 500,
-                            color: i === 1 ? 'var(--accent)' : 'var(--text-secondary)',
-                            background: i === 1 ? 'var(--accent-soft)' : 'transparent',
+                            textDecoration: 'none',
+                            color: item === 'Matches' ? 'var(--accent)' : 'var(--text-secondary)',
+                            background: item === 'Matches' ? 'var(--accent-soft)' : 'transparent',
                             transition: 'var(--transition)',
                         }}>
                             {item}
-                        </a>
+                        </Link>
                     ))}
                 </nav>
             </header>

@@ -2,6 +2,7 @@
 
 import { useState, useCallback, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 
 interface Interest {
     interestId: string;
@@ -399,21 +400,38 @@ function MatchModal({ name, onClose }: { name: string; onClose: () => void }) {
                 }}>
                     You and <strong style={{ color: 'var(--green)' }}>{name}</strong> both liked each other.
                 </div>
-                <button
-                    onClick={onClose}
-                    style={{
-                        padding: '12px 32px',
-                        borderRadius: '12px',
-                        background: 'var(--green-soft)',
-                        color: 'var(--green)',
-                        border: '1px solid rgba(74,222,128,0.3)',
-                        fontSize: '14px',
-                        fontWeight: 600,
-                        cursor: 'pointer',
-                    }}
-                >
-                    Keep Discovering
-                </button>
+                <div style={{ display: 'flex', gap: '12px', justifyContent: 'center' }}>
+                    <button
+                        onClick={() => window.location.href = '/matches'}
+                        style={{
+                            padding: '12px 24px',
+                            borderRadius: '12px',
+                            background: 'var(--accent)',
+                            color: '#fff',
+                            border: 'none',
+                            fontSize: '14px',
+                            fontWeight: 600,
+                            cursor: 'pointer',
+                        }}
+                    >
+                        View Match
+                    </button>
+                    <button
+                        onClick={onClose}
+                        style={{
+                            padding: '12px 24px',
+                            borderRadius: '12px',
+                            background: 'var(--green-soft)',
+                            color: 'var(--green)',
+                            border: '1px solid rgba(74,222,128,0.3)',
+                            fontSize: '14px',
+                            fontWeight: 600,
+                            cursor: 'pointer',
+                        }}
+                    >
+                        Keep Discovering
+                    </button>
+                </div>
             </div>
         </div>
     );
@@ -423,8 +441,20 @@ function MatchModal({ name, onClose }: { name: string; onClose: () => void }) {
 
 export default function FeedPage() {
     const [jwt, setJwt] = useState('');
-    const [feed, setFeed] = useState<FeedCandidate[]>([]);
-    const [nextCursor, setNextCursor] = useState<{ score: number, id: string } | null>(null);
+    const [feed, setFeed] = useState<FeedCandidate[]>(() => {
+        if (typeof window !== 'undefined') {
+            const cached = sessionStorage.getItem('tribe_feed_cache');
+            return cached ? JSON.parse(cached) : [];
+        }
+        return [];
+    });
+    const [nextCursor, setNextCursor] = useState<{ score: number, id: string } | null>(() => {
+        if (typeof window !== 'undefined') {
+            const cached = sessionStorage.getItem('tribe_cursor_cache');
+            return cached ? JSON.parse(cached) : null;
+        }
+        return null;
+    });
     const [loading, setLoading] = useState(false);
     const [loadingMore, setLoadingMore] = useState(false);
     const [error, setError] = useState('');
@@ -501,8 +531,23 @@ export default function FeedPage() {
         }, 600);
     }, []);
 
+    // Persist Cache natively enabling Desktop-Grade backward navigation retention
     useEffect(() => {
-        if (jwt) {
+        if (feed.length > 0) {
+            sessionStorage.setItem('tribe_feed_cache', JSON.stringify(feed));
+        }
+    }, [feed]);
+
+    useEffect(() => {
+        if (nextCursor) {
+            sessionStorage.setItem('tribe_cursor_cache', JSON.stringify(nextCursor));
+        } else {
+            sessionStorage.removeItem('tribe_cursor_cache');
+        }
+    }, [nextCursor]);
+
+    useEffect(() => {
+        if (jwt && feed.length === 0) {
             fetchFeed(true);
         }
         // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -535,7 +580,7 @@ export default function FeedPage() {
                 alignItems: 'center',
                 justifyContent: 'space-between',
             }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <Link href="/feed" style={{ display: 'flex', alignItems: 'center', gap: '10px', textDecoration: 'none' }}>
                     <div style={{
                         width: '28px', height: '28px',
                         borderRadius: '8px',
@@ -545,24 +590,25 @@ export default function FeedPage() {
                     }}>
                         T
                     </div>
-                    <span style={{ fontWeight: 600, fontSize: '16px', letterSpacing: '-0.02em' }}>
+                    <span style={{ fontWeight: 600, fontSize: '16px', letterSpacing: '-0.02em', color: '#fff' }}>
                         Tribe
                     </span>
-                </div>
+                </Link>
 
                 <nav style={{ display: 'flex', gap: '4px' }}>
-                    {['Feed', 'Matches', 'Profile'].map((item, i) => (
-                        <a key={item} href={`/${item.toLowerCase()}`} style={{
+                    {['Feed', 'Matches'].map((item, i) => (
+                        <Link key={item} href={`/${item.toLowerCase()}`} style={{
                             padding: '6px 14px',
                             borderRadius: '8px',
                             fontSize: '13px',
                             fontWeight: 500,
-                            color: i === 0 ? 'var(--accent)' : 'var(--text-secondary)',
-                            background: i === 0 ? 'var(--accent-soft)' : 'transparent',
+                            textDecoration: 'none',
+                            color: item === 'Feed' ? 'var(--accent)' : 'var(--text-secondary)',
+                            background: item === 'Feed' ? 'var(--accent-soft)' : 'transparent',
                             transition: 'var(--transition)',
                         }}>
                             {item}
-                        </a>
+                        </Link>
                     ))}
                 </nav>
             </header>
