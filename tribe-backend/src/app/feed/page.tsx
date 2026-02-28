@@ -36,6 +36,107 @@ interface FeedCandidate {
     _finalScore: number;
 }
 
+// ─── Post Like Row ────────────────────────────────────────────────────────────
+// Isolated: no connection to match / profile LIKE system.
+
+function PostLikeRow({ post, jwt }: { post: Post; jwt: string }) {
+    const [liked, setLiked] = useState(false);
+    const [pending, setPending] = useState(false);
+
+    const handleLike = async () => {
+        if (pending || !post.id) return;
+        // Optimistic flip
+        setLiked(prev => !prev);
+        setPending(true);
+        try {
+            const res = await fetch('/api/post-like', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    Authorization: `Bearer ${jwt}`,
+                },
+                body: JSON.stringify({ postId: post.id }),
+            });
+            if (!res.ok) {
+                // Revert if server rejects (e.g. own-post guard)
+                setLiked(prev => !prev);
+            }
+        } catch {
+            setLiked(prev => !prev);
+        } finally {
+            setPending(false);
+        }
+    };
+
+    return (
+        <div style={{
+            padding: '10px 12px',
+            borderRadius: 'var(--radius-sm)',
+            background: 'rgba(255,255,255,0.03)',
+            border: '1px solid var(--border-subtle)',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '10px',
+        }}>
+            {/* Interest tag */}
+            <span style={{
+                fontSize: '11px',
+                padding: '2px 7px',
+                borderRadius: '12px',
+                background: 'var(--accent-soft)',
+                color: 'var(--accent)',
+                whiteSpace: 'nowrap',
+                flexShrink: 0,
+                fontWeight: 500,
+            }}>
+                {post.interest?.name ?? 'Post'}
+            </span>
+
+            {/* Caption / media label */}
+            <span style={{
+                fontSize: '12px',
+                color: 'var(--text-secondary)',
+                lineHeight: 1.4,
+                overflow: 'hidden',
+                display: '-webkit-box',
+                WebkitLineClamp: 2,
+                WebkitBoxOrient: 'vertical',
+                flex: 1,
+            }}>
+                {post.caption
+                    ? `"${post.caption}"`
+                    : post.media
+                        ? `[${post.media.type === 'video' ? '🎥' : '🖼️'} Media]`
+                        : null}
+            </span>
+
+            {/* Heart button — isolated from match system */}
+            <button
+                onClick={handleLike}
+                disabled={pending}
+                title={liked ? 'Unlike post' : 'Like post'}
+                style={{
+                    background: 'none',
+                    border: 'none',
+                    cursor: pending ? 'not-allowed' : 'pointer',
+                    fontSize: '16px',
+                    lineHeight: 1,
+                    padding: '2px 4px',
+                    color: liked ? '#f87171' : 'var(--text-muted)',
+                    transition: 'color 0.15s ease, transform 0.12s ease',
+                    transform: liked ? 'scale(1.15)' : 'scale(1)',
+                    flexShrink: 0,
+                    opacity: pending ? 0.6 : 1,
+                }}
+                onMouseEnter={e => { if (!liked) (e.currentTarget as HTMLElement).style.color = '#f87171'; }}
+                onMouseLeave={e => { if (!liked) (e.currentTarget as HTMLElement).style.color = 'var(--text-muted)'; }}
+            >
+                {liked ? '♥' : '♡'}
+            </button>
+        </div>
+    );
+}
+
 // ─── Feed Card ───────────────────────────────────────────────────────────────
 
 function FeedCard({
@@ -261,46 +362,7 @@ function FeedCard({
                         </div>
                         <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
                             {user.posts.slice(0, 3).map((post: Post, i: number) => (
-                                <div key={i} style={{
-                                    padding: '10px 12px',
-                                    borderRadius: 'var(--radius-sm)',
-                                    background: 'rgba(255,255,255,0.03)',
-                                    border: '1px solid var(--border-subtle)',
-                                    display: 'flex',
-                                    alignItems: 'flex-start',
-                                    gap: '10px',
-                                }}>
-                                    <span style={{
-                                        fontSize: '11px',
-                                        padding: '2px 7px',
-                                        borderRadius: '12px',
-                                        background: 'var(--accent-soft)',
-                                        color: 'var(--accent)',
-                                        whiteSpace: 'nowrap',
-                                        flexShrink: 0,
-                                        fontWeight: 500,
-                                    }}>
-                                        {post.interest?.name ?? 'Post'}
-                                    </span>
-                                    {post.caption && (
-                                        <span style={{
-                                            fontSize: '12px',
-                                            color: 'var(--text-secondary)',
-                                            lineHeight: 1.4,
-                                            overflow: 'hidden',
-                                            display: '-webkit-box',
-                                            WebkitLineClamp: 2,
-                                            WebkitBoxOrient: 'vertical',
-                                        }}>
-                                            "{post.caption}"
-                                        </span>
-                                    )}
-                                    {!post.caption && post.media && (
-                                        <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>
-                                            [{post.media.type === 'video' ? '🎥' : '🖼️'} Media]
-                                        </span>
-                                    )}
-                                </div>
+                                <PostLikeRow key={post.id ?? i} post={post} jwt={jwt} />
                             ))}
                         </div>
                     </div>

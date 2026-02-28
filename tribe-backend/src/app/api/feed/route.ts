@@ -39,7 +39,7 @@ export async function GET(req: Request) {
                     select: { interestId: true, createdAt: true }
                 }
             }
-        });
+        }) as any;
 
         if (!currentUser) {
             return NextResponse.json({ error: 'User not found' }, { status: 404 });
@@ -212,7 +212,7 @@ export async function GET(req: Request) {
                     .map((p: any) => p.interestId) || []
             );
 
-            const momentumBoost = calculateMomentumBoost(viewerRecentInterestIds, candidateRecentInterestIds);
+            const momentumBoost = calculateMomentumBoost(viewerRecentInterestIds as Set<string>, candidateRecentInterestIds as Set<string>);
 
             const finalScore = calculateFinalMatchScore(interestScore, distanceSq, sharedInterestPostsCount, momentumBoost, u.lastActiveAt);
 

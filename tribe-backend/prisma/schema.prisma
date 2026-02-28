@@ -36,6 +36,7 @@ model User {
 
   media             Media[]
   interestPosts     InterestPost[]
+  postLikes         PostLike[]
   viewerImpressions FeedImpression[] @relation("ViewerImpressions")
   targetImpressions FeedImpression[] @relation("TargetImpressions")
 
@@ -146,6 +147,7 @@ model InterestPost {
   user     User     @relation(fields: [userId], references: [id])
   interest Interest @relation(fields: [interestId], references: [id])
   media    Media?   @relation(fields: [mediaId], references: [id])
+  likes    PostLike[]
 
   @@index([userId])
   @@index([interestId])
@@ -162,4 +164,17 @@ model FeedImpression {
 
   @@unique([viewerId, targetId])
   @@index([viewerId])
+}
+
+model PostLike {
+  id        String   @id @default(uuid())
+  postId    String
+  likerId   String
+  createdAt DateTime @default(now())
+
+  post      InterestPost @relation(fields: [postId], references: [id], onDelete: Cascade)
+  liker     User         @relation(fields: [likerId], references: [id], onDelete: Cascade)
+
+  @@unique([postId, likerId])
+  @@index([likerId])
 }

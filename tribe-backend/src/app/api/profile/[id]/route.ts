@@ -30,7 +30,7 @@ export async function GET(req: Request, context: any) {
                 interests: {
                     select: {
                         interestId: true, level: true,
-                        interest: { select: { parentId: true, usageCount: true } }
+                        interest: { select: { parentId: true } }
                     }
                 },
                 interestPosts: {
@@ -38,7 +38,7 @@ export async function GET(req: Request, context: any) {
                     select: { interestId: true, createdAt: true }
                 }
             }
-        });
+        }) as any;
 
         if (!currentUser) return NextResponse.json({ error: 'Current user not found' }, { status: 404 });
 
@@ -103,7 +103,7 @@ export async function GET(req: Request, context: any) {
                 .map((p: any) => p.interestId)
         );
 
-        const momentumBoost = calculateMomentumBoost(viewerRecentIds, candidateRecentIds);
+        const momentumBoost = calculateMomentumBoost(viewerRecentIds as Set<string>, candidateRecentIds as Set<string>);
 
         const finalScore = calculateFinalMatchScore(interestScore, distanceSq, sharedInterestPostsCount, momentumBoost, candidate.lastActiveAt);
 
