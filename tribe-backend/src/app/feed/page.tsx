@@ -409,7 +409,9 @@ function MatchModal({ name, onClose }: { name: string; onClose: () => void }) {
 export default function FeedPage() {
     const [jwt, setJwt] = useState('');
     const [feed, setFeed] = useState<FeedCandidate[]>([]);
+    const [nextCursor, setNextCursor] = useState<{ score: number, id: string } | null>(null);
     const [loading, setLoading] = useState(false);
+    const [loadingMore, setLoadingMore] = useState(false);
     const [error, setError] = useState('');
     const [matchName, setMatchName] = useState<string | null>(null);
 
@@ -420,26 +422,49 @@ export default function FeedPage() {
         return () => window.removeEventListener('tribe:match', handler);
     });
 
-    const fetchFeed = useCallback(async () => {
+    const fetchFeed = useCallback(async (reset: boolean = true) => {
         if (!jwt.trim()) {
             setError('Paste a JWT token first (get one from /api/seed)');
             return;
         }
-        setLoading(true);
+
+        if (reset) {
+            setLoading(true);
+            setFeed([]);
+            setNextCursor(null);
+        } else {
+            setLoadingMore(true);
+        }
+
         setError('');
+
         try {
-            const res = await fetch('/api/feed', {
+            let url = '/api/feed';
+            if (!reset && nextCursor) {
+                url += `?cursorScore=${nextCursor.score}&cursorId=${nextCursor.id}`;
+            }
+
+            const res = await fetch(url, {
                 headers: { Authorization: `Bearer ${jwt.trim()}` },
             });
+
             const data = await res.json();
             if (!res.ok) throw new Error(data.error || 'Feed fetch failed');
-            setFeed(data.feed || []);
+
+            if (reset) {
+                setFeed(data.feed || []);
+            } else {
+                setFeed(prev => [...prev, ...(data.feed || [])]);
+            }
+            setNextCursor(data.nextCursor || null);
+
         } catch (e: any) {
             setError(e.message);
         } finally {
-            setLoading(false);
+            if (reset) setLoading(false);
+            else setLoadingMore(false);
         }
-    }, [jwt]);
+    }, [jwt, nextCursor]);
 
     const removeCard = useCallback((id: string) => {
         setTimeout(() => {
@@ -541,7 +566,7 @@ export default function FeedPage() {
                         value={jwt}
                         onChange={e => setJwt(e.target.value)}
                         placeholder="Paste JWT token — get one from /api/seed"
-                        onKeyDown={e => e.key === 'Enter' && fetchFeed()}
+                        onKeyDown={e => e.key === 'Enter' && fetchFeed(true)}
                         style={{
                             flex: 1,
                             padding: '10px 14px',
@@ -557,8 +582,8 @@ export default function FeedPage() {
                         onBlur={e => (e.target.style.borderColor = 'var(--border)')}
                     />
                     <button
-                        onClick={fetchFeed}
-                        disabled={loading}
+                        onClick={() => fetchFeed(true)}
+                        disabled={loading || loadingMore}
                         style={{
                             padding: '10px 20px',
                             borderRadius: 'var(--radius-sm)',
@@ -625,31 +650,53 @@ export default function FeedPage() {
                 )}
 
                 {/* Feed Cards */}
-                {loading && (
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-                        {[1, 2, 3].map(i => (
-                            <div key={i} style={{
-                                height: '240px',
-                                borderRadius: 'var(--radius)',
-                                background: 'var(--bg-card)',
-                                border: '1px solid var(--border)',
-                                animation: 'pulse 1.5s ease-in-out infinite',
-                            }} />
-                        ))}
-                    </div>
-                )}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                    {feed.map(user => (
+                        <FeedCard
+                            key={user.id}
+                            user={user}
+                            jwt={jwt}
+                            onLike={removeCard}
+                            onPass={removeCard}
+                        />
+                    ))}
 
-                {!loading && feed.length > 0 && (
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-                        {feed.map(user => (
-                            <FeedCard
-                                key={user.id}
-                                user={user}
-                                jwt={jwt}
-                                onLike={removeCard}
-                                onPass={removeCard}
-                            />
-                        ))}
+                    {loading && (
+                        <>
+                            {[1, 2, 3].map(i => (
+                                <div key={i} style={{
+                                    height: '240px',
+                                    borderRadius: 'var(--radius)',
+                                    background: 'var(--bg-card)',
+                                    border: '1px solid var(--border)',
+                                    animation: 'pulse 1.5s ease-in-out infinite',
+                                }} />
+                            ))}
+                        </>
+                    )}
+                </div>
+
+                {nextCursor && !loading && feed.length > 0 && (
+                    <div style={{ textAlign: 'center', marginTop: '24px' }}>
+                        <button
+                            onClick={() => fetchFeed(false)}
+                            disabled={loadingMore}
+                            style={{
+                                padding: '12px 24px',
+                                borderRadius: '24px',
+                                background: loadingMore ? 'transparent' : 'var(--bg-card)',
+                                border: `1px solid ${loadingMore ? 'transparent' : 'var(--border)'}`,
+                                color: loadingMore ? 'var(--text-muted)' : 'var(--text-primary)',
+                                fontSize: '14px',
+                                fontWeight: 600,
+                                cursor: loadingMore ? 'default' : 'pointer',
+                                transition: 'var(--transition)'
+                            }}
+                            onMouseEnter={e => { if (!loadingMore) (e.target as HTMLElement).style.borderColor = 'var(--text-muted)' }}
+                            onMouseLeave={e => { if (!loadingMore) (e.target as HTMLElement).style.borderColor = 'var(--border)' }}
+                        >
+                            {loadingMore ? 'Loading more candidates...' : 'Load more'}
+                        </button>
                     </div>
                 )}
 

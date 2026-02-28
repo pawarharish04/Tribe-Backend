@@ -12,6 +12,15 @@ export async function GET(req: Request) {
         }
 
         // 1. Fetch current user data and interests
+        const url = new URL(req.url);
+        const cursorScoreRaw = url.searchParams.get('cursorScore');
+        const cursorId = url.searchParams.get('cursorId');
+
+        let cursorScore: number | null = null;
+        if (cursorScoreRaw && !isNaN(parseFloat(cursorScoreRaw))) {
+            cursorScore = parseFloat(cursorScoreRaw);
+        }
+
         const currentUser = await prisma.user.findUnique({
             where: { id: userId },
             select: {
@@ -241,13 +250,38 @@ export async function GET(req: Request) {
             };
         }).sort((a, b) => {
             // Sort Descending by _finalScore
-            return b._finalScore - a._finalScore;
+            if (b._finalScore !== a._finalScore) {
+                return b._finalScore - a._finalScore;
+            }
+            // Deterministic Tiebreaker
+            return a.id.localeCompare(b.id);
         });
 
-        // 5. Return top 20
-        const paginatedFeed = sortedFeed.slice(0, 20);
+        // 5. Apply Cursor Filter if provided
+        let filteredFeed = sortedFeed;
+        if (cursorScore !== null && cursorId) {
+            filteredFeed = sortedFeed.filter(c => {
+                if (c._finalScore < cursorScore!) return true;
+                if (c._finalScore === cursorScore! && c.id > cursorId!) return true;
+                return false;
+            });
+        }
 
+        // Return top 20
+        const limit = 20;
+        const paginatedFeed = filteredFeed.slice(0, limit);
+
+        let nextCursor = null;
         if (paginatedFeed.length > 0) {
+            // we will only provide next cursor if items were fetched
+            const last = paginatedFeed[paginatedFeed.length - 1];
+            // if we fetched exactly `limit`, there MIGHT be more
+            // but for simplicity, we provide a cursor if there are items
+            nextCursor = {
+                score: last._finalScore,
+                id: last.id
+            };
+
             await Promise.all(paginatedFeed.map(c =>
                 prisma.feedImpression.upsert({
                     where: {
@@ -290,7 +324,8 @@ export async function GET(req: Request) {
         return NextResponse.json({
             message: 'Geo feed fetched successfully',
             count: paginatedFeed.length,
-            feed: paginatedFeed
+            feed: paginatedFeed,
+            nextCursor
         }, { status: 200 });
 
     } catch (error) {
