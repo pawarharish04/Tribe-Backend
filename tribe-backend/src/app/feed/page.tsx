@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useCallback, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 
 interface Interest {
     interestId: string;
@@ -428,6 +429,7 @@ export default function FeedPage() {
     const [loadingMore, setLoadingMore] = useState(false);
     const [error, setError] = useState('');
     const [matchName, setMatchName] = useState<string | null>(null);
+    const router = useRouter();
 
     // Sync auth token strictly from persistent layer
     useEffect(() => {
@@ -477,6 +479,12 @@ export default function FeedPage() {
             } else {
                 setFeed(prev => [...prev, ...(data.feed || [])]);
             }
+
+            // Onboarding Native Hand-off
+            if (data.needsInterests) {
+                router.push('/onboarding');
+            }
+
             setNextCursor(data.nextCursor || null);
 
         } catch (e: any) {
