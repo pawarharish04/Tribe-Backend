@@ -118,7 +118,7 @@ function MatchCard({ match }: { match: MatchPayload }) {
             )}
 
             {/* Action */}
-            <button style={{
+            <a href={`/profile/${match.id}`} style={{
                 marginTop: '8px',
                 padding: '12px 0',
                 width: '100%',
@@ -129,12 +129,15 @@ function MatchCard({ match }: { match: MatchPayload }) {
                 fontSize: '14px',
                 fontWeight: 600,
                 cursor: 'pointer',
-                transition: 'var(--transition)'
+                transition: 'var(--transition)',
+                textAlign: 'center',
+                display: 'block',
+                textDecoration: 'none'
             }}
                 onMouseEnter={e => { (e.target as HTMLElement).style.background = 'var(--border-subtle)' }}
                 onMouseLeave={e => { (e.target as HTMLElement).style.background = 'var(--bg)' }}>
                 Open Profile
-            </button>
+            </a>
 
         </div>
     );
