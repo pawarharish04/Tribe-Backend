@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '../../../lib/prisma';
 import { getUserIdFromRequest } from '../../../lib/auth';
-import { calculateDistanceSq, calculateInterestScore, calculateFinalMatchScore, getDistanceFactor } from '../../../lib/matching';
+import { calculateDistanceSq, calculateInterestScore, calculateFinalMatchScore, getDistanceFactor, calculateMomentumBoost } from '../../../lib/matching';
 
 export async function GET(req: Request) {
     const startTime = performance.now();
@@ -21,8 +21,13 @@ export async function GET(req: Request) {
                     select: {
                         interestId: true,
                         level: true,
-                        interest: { select: { parentId: true } }
+                        interest: { select: { parentId: true, usageCount: true } }
                     }
+                },
+                interestPosts: {
+                    take: 50,
+                    orderBy: { createdAt: 'desc' },
+                    select: { interestId: true, createdAt: true }
                 }
             }
         });
@@ -95,7 +100,7 @@ export async function GET(req: Request) {
                             select: {
                                 interestId: true,
                                 level: true,
-                                interest: { select: { name: true, parentId: true } }
+                                interest: { select: { name: true, parentId: true, usageCount: true } }
                             }
                         },
                         interestPosts: {
@@ -122,7 +127,7 @@ export async function GET(req: Request) {
                             select: {
                                 interestId: true,
                                 level: true,
-                                interest: { select: { name: true, parentId: true } }
+                                interest: { select: { name: true, parentId: true, usageCount: true } }
                             }
                         },
                         interestPosts: {
@@ -166,7 +171,24 @@ export async function GET(req: Request) {
             const sharedInterestIds = new Set(currentUser.interests.map((ui: any) => ui.interestId));
             const sharedInterestPostsCount = u.interestPosts?.filter((post: any) => sharedInterestIds.has(post.interestId)).length || 0;
 
-            const finalScore = calculateFinalMatchScore(interestScore, distanceSq, sharedInterestPostsCount, u.lastActiveAt);
+            // Calculate Momentum Boost
+            const cutoff = new Date(Date.now() - 48 * 60 * 60 * 1000);
+
+            const viewerRecentInterestIds = new Set(
+                currentUser.interestPosts
+                    ?.filter((p: any) => new Date(p.createdAt) >= cutoff)
+                    .map((p: any) => p.interestId) || []
+            );
+
+            const candidateRecentInterestIds = new Set(
+                u.interestPosts
+                    ?.filter((p: any) => new Date(p.createdAt) >= cutoff)
+                    .map((p: any) => p.interestId) || []
+            );
+
+            const momentumBoost = calculateMomentumBoost(viewerRecentInterestIds, candidateRecentInterestIds);
+
+            const finalScore = calculateFinalMatchScore(interestScore, distanceSq, sharedInterestPostsCount, momentumBoost, u.lastActiveAt);
 
             const distanceKm = distanceSq !== null ? Math.sqrt(distanceSq) * 111 : 0;
             const distanceFactor = distanceSq !== null ? getDistanceFactor(distanceKm) : 1.0;
@@ -182,6 +204,7 @@ export async function GET(req: Request) {
                 _interestScore: interestScore,
                 _distanceFactor: distanceFactor,
                 _activityFactor: activityFactor,
+                _momentumBoost: momentumBoost,
                 _exactMatches: breakdown.exactMatches,
                 _parentChildMatches: breakdown.parentChildMatches,
                 _sameCategoryMatches: breakdown.sameCategoryMatches,

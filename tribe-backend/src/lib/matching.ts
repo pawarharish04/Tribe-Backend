@@ -18,6 +18,7 @@ export interface InterestData {
     level?: number | null;
     interest: {
         parentId: string | null;
+        usageCount?: number;
     };
 }
 
@@ -33,6 +34,13 @@ export interface ScoreBreakdown {
     sameCategoryMatches: number;
 }
 
+export function getRarityFactor(usageCount: number): number {
+    if (usageCount < 10) return 1.2;
+    if (usageCount < 25) return 1.1;
+    if (usageCount < 50) return 1.05;
+    return 1.0;
+}
+
 export function calculateInterestScore(
     userInterests: InterestData[],
     targetInterests: InterestData[]
@@ -46,6 +54,9 @@ export function calculateInterestScore(
     userInterests.forEach(ui => userInterestMap.set(ui.interestId, ui));
 
     targetInterests.forEach(ti => {
+        const usageCount = ti.interest.usageCount || 0;
+        const rarityFactor = getRarityFactor(usageCount);
+
         // Exact Match
         if (userInterestMap.has(ti.interestId)) {
             const basePoints = 30;
@@ -55,9 +66,9 @@ export function calculateInterestScore(
             const targetLevel = ti.level || 1;
 
             // Bonus for high mutual proficiency using a multiplier
-            // e.g., level 3 mutual = 0.3 modifier -> 20 * 1.3 = 26
+            // e.g., level 3 mutual = 0.3 modifier -> 30 * 1.3 = 39 (before rarity)
             const strengthModifier = Math.min(userLevel, targetLevel) * 0.1;
-            score += basePoints * (1 + strengthModifier);
+            score += (basePoints * (1 + strengthModifier)) * rarityFactor;
 
             exactMatches++;
 
@@ -68,7 +79,7 @@ export function calculateInterestScore(
         let matchedParentChild = false;
         for (const ui of userInterests) {
             if (ti.interest.parentId === ui.interestId || ui.interest.parentId === ti.interestId) {
-                score += 18;
+                score += 18 * rarityFactor;
                 matchedParentChild = true;
                 parentChildMatches++;
                 break; // Prevent double counting for the same target interest
@@ -85,7 +96,7 @@ export function calculateInterestScore(
                 ui.interest.parentId &&
                 ti.interest.parentId === ui.interest.parentId
             ) {
-                score += 12;
+                score += 12 * rarityFactor;
                 matchedCategory = true;
                 sameCategoryMatches++;
                 break; // Prevent double counting sibling overlaps
@@ -122,6 +133,21 @@ export function getActivityFactor(lastActiveAt: Date | undefined | null): number
     if (hoursSinceActive <= 168) return 0.95;
     return 0.9;
 }
+export function calculateMomentumBoost(
+    viewerRecentInterestIds: Set<string>,
+    candidateRecentInterestIds: Set<string>
+): number {
+    let sharedRecent = 0;
+
+    for (const id of viewerRecentInterestIds) {
+        if (candidateRecentInterestIds.has(id)) {
+            sharedRecent++;
+        }
+    }
+
+    return Math.min(sharedRecent * 3, 6);
+}
+
 /**
  * Calculates the final match score by taking the base interest score 
  * and scaling it based on distance, and optionally boosting based on posts.
@@ -130,10 +156,11 @@ export function calculateFinalMatchScore(
     interestScore: number,
     distanceSq: number | null,
     sharedInterestPostsCount: number = 0,
+    momentumBoost: number = 0,
     lastActiveAt?: Date | null
 ): number {
     const postBoost = Math.min(sharedInterestPostsCount * 2, 6);
-    const boostedScore = Math.min(interestScore + postBoost, 100);
+    const boostedScore = Math.min(interestScore + postBoost + momentumBoost, 100);
 
     const activityFactor = getActivityFactor(lastActiveAt);
 

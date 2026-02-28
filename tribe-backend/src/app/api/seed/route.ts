@@ -106,9 +106,22 @@ export async function GET() {
                 }
             },
             include: {
-                interests: { select: { interestId: true, level: true, interest: { select: { parentId: true } } } }
+                interests: { select: { interestId: true, level: true, interest: { select: { parentId: true, usageCount: true } } } }
             }
         });
+
+        // Sync all Usage Counts cleanly
+        await prisma.interest.updateMany({ data: { usageCount: 0 } });
+        const groupedUsage = await prisma.userInterest.groupBy({
+            by: ['interestId'],
+            _count: { interestId: true }
+        });
+        await Promise.all(groupedUsage.map(g =>
+            prisma.interest.update({
+                where: { id: g.interestId },
+                data: { usageCount: g._count.interestId }
+            })
+        ));
 
         const token = jwt.sign({ userId: testOriginUser.id }, process.env.JWT_SECRET || 'default-secret-key');
 
@@ -123,7 +136,7 @@ export async function GET() {
                     select: {
                         interestId: true,
                         level: true,
-                        interest: { select: { name: true, parentId: true } }
+                        interest: { select: { name: true, parentId: true, usageCount: true } }
                     }
                 },
                 interestPosts: {

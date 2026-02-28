@@ -51,10 +51,12 @@ model Interest {
   name        String  @unique
   description String?
 
-  // Hierarchical tree structure
   parentId String?
   parent   Interest?  @relation("InterestHierarchy", fields: [parentId], references: [id])
   children Interest[] @relation("InterestHierarchy")
+
+  // Usage stats for rarity boost
+  usageCount Int @default(0)
 
   users UserInterest[]
   posts InterestPost[]
