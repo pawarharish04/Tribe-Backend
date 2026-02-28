@@ -18,6 +18,11 @@ model User {
   password String
   name     String?
 
+  // Profile fields
+  bio             String?
+  avatarUrl       String?
+  locationEnabled Boolean @default(false)
+
   // Geo-location fields
   latitude  Float?
   longitude Float?
