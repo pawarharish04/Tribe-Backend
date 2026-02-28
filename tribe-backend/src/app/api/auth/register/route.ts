@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import bcrypt from 'bcrypt';
+import jwt from 'jsonwebtoken';
 import { prisma } from '../../../../lib/prisma';
 
 export async function POST(req: Request) {
@@ -42,7 +43,19 @@ export async function POST(req: Request) {
         // Don't return the password
         const { password: _, ...userWithoutPassword } = newUser;
 
-        return NextResponse.json(userWithoutPassword, { status: 201 });
+        // Auto-generate Token
+        const secret = process.env.JWT_SECRET || 'default-secret-key';
+        const token = jwt.sign(
+            { userId: newUser.id },
+            secret,
+            { expiresIn: '7d' }
+        );
+
+        return NextResponse.json({
+            message: 'Registration successful',
+            user: userWithoutPassword,
+            token
+        }, { status: 201 });
     } catch (error) {
         console.error('Registration Error:', error);
         return NextResponse.json(

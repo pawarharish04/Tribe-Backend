@@ -150,11 +150,18 @@ export default function MatchesPage() {
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
 
-    const fetchMatches = useCallback(async () => {
-        if (!jwt.trim()) {
-            setError('Paste a JWT token first');
-            return;
+    useEffect(() => {
+        const stored = localStorage.getItem('tribe_jwt');
+        if (stored) {
+            setJwt(stored);
+        } else {
+            setError('Unauthorized. Please log in.');
         }
+    }, []);
+
+    const fetchMatches = useCallback(async () => {
+        if (!jwt.trim()) return;
+
         setLoading(true);
         setError('');
         try {
@@ -170,6 +177,10 @@ export default function MatchesPage() {
             setLoading(false);
         }
     }, [jwt]);
+
+    useEffect(() => {
+        if (jwt) fetchMatches();
+    }, [jwt, fetchMatches]);
 
     return (
         <div style={{
@@ -215,30 +226,6 @@ export default function MatchesPage() {
                     <p style={{ fontSize: '14px', color: 'var(--text-muted)', lineHeight: 1.5 }}>
                         People who mutually align with your discovery network.
                     </p>
-                </div>
-
-                {/* JWT Input Temporary block */}
-                <div style={{ display: 'flex', gap: '10px', marginBottom: '28px' }}>
-                    <input
-                        value={jwt} onChange={e => setJwt(e.target.value)}
-                        placeholder="Paste JWT token to load your locker"
-                        onKeyDown={e => e.key === 'Enter' && fetchMatches()}
-                        style={{
-                            flex: 1, padding: '10px 14px', borderRadius: 'var(--radius-sm)',
-                            background: 'var(--bg-card)', border: '1px solid var(--border)',
-                            color: 'var(--text-primary)', fontSize: '13px', outline: 'none'
-                        }}
-                    />
-                    <button
-                        onClick={fetchMatches} disabled={loading}
-                        style={{
-                            padding: '10px 20px', borderRadius: 'var(--radius-sm)',
-                            background: loading ? 'rgba(124,106,247,0.2)' : 'var(--accent)',
-                            color: '#fff', fontSize: '13px', fontWeight: 600
-                        }}
-                    >
-                        {loading ? '...' : 'Unlock'}
-                    </button>
                 </div>
 
                 {error && (

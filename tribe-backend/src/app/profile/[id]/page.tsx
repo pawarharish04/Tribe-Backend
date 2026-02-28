@@ -65,16 +65,14 @@ export default function ProfilePage() {
 
     // Initial load try session storage
     useEffect(() => {
-        // Since we don't have proper auth context yet, we just grab it locally or ask
-        // In this test environment, we rely on the user pasting JWT in previous screens and we could put it in localStorage
-        // but since we didn't save it to local storage previously, we might just ask them, or we can check session storage. 
-        const storedJwt = localStorage.getItem('tribe_jwt') || sessionStorage.getItem('tribe_jwt');
+        const storedJwt = localStorage.getItem('tribe_jwt');
         if (storedJwt) {
             setJwt(storedJwt);
         } else {
-            setLoading(false); // require manual input
+            setError('Unauthorized. Please log in.');
+            router.push('/login');
         }
-    }, []);
+    }, [router]);
 
     const fetchProfile = useCallback(async (token: string) => {
         if (!token) return;
@@ -125,19 +123,7 @@ export default function ProfilePage() {
 
 
     if (!jwt && !loading) {
-        return (
-            <div style={{ background: 'var(--bg)', minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', width: '300px' }}>
-                    <p style={{ color: 'var(--text-muted)', textAlign: 'center' }}>Provide JWT to view profile</p>
-                    <input
-                        onChange={e => setJwt(e.target.value)}
-                        onKeyDown={e => e.key === 'Enter' && fetchProfile(jwt)}
-                        placeholder="Paste JWT here..."
-                        style={{ padding: '10px', borderRadius: '8px', border: '1px solid var(--border)', background: 'var(--bg-card)', color: '#fff' }}
-                    />
-                </div>
-            </div>
-        );
+        return null;
     }
 
     if (loading) {

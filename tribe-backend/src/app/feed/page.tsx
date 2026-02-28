@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 
 interface Interest {
     interestId: string;
@@ -429,6 +429,16 @@ export default function FeedPage() {
     const [error, setError] = useState('');
     const [matchName, setMatchName] = useState<string | null>(null);
 
+    // Sync auth token strictly from persistent layer
+    useEffect(() => {
+        const stored = localStorage.getItem('tribe_jwt');
+        if (stored) {
+            setJwt(stored);
+        } else {
+            setError('Unauthorized. Please log in.');
+        }
+    }, []);
+
     // Listen for match events from FeedCards
     useState(() => {
         const handler = (e: Event) => setMatchName((e as CustomEvent).detail.name);
@@ -437,10 +447,7 @@ export default function FeedPage() {
     });
 
     const fetchFeed = useCallback(async (reset: boolean = true) => {
-        if (!jwt.trim()) {
-            setError('Paste a JWT token first (get one from /api/seed)');
-            return;
-        }
+        if (!jwt.trim()) return;
 
         if (reset) {
             setLoading(true);
@@ -485,6 +492,12 @@ export default function FeedPage() {
             setFeed(f => f.filter(u => u.id !== id));
         }, 600);
     }, []);
+
+    useEffect(() => {
+        if (jwt) {
+            fetchFeed(true);
+        }
+    }, [jwt, fetchFeed]);
 
     return (
         <div style={{
@@ -570,49 +583,7 @@ export default function FeedPage() {
                     </p>
                 </div>
 
-                {/* JWT Input */}
-                <div style={{
-                    display: 'flex',
-                    gap: '10px',
-                    marginBottom: '28px',
-                }}>
-                    <input
-                        value={jwt}
-                        onChange={e => setJwt(e.target.value)}
-                        placeholder="Paste JWT token — get one from /api/seed"
-                        onKeyDown={e => e.key === 'Enter' && fetchFeed(true)}
-                        style={{
-                            flex: 1,
-                            padding: '10px 14px',
-                            borderRadius: 'var(--radius-sm)',
-                            background: 'var(--bg-card)',
-                            border: '1px solid var(--border)',
-                            color: 'var(--text-primary)',
-                            fontSize: '13px',
-                            outline: 'none',
-                            transition: 'var(--transition)',
-                        }}
-                        onFocus={e => (e.target.style.borderColor = 'var(--accent)')}
-                        onBlur={e => (e.target.style.borderColor = 'var(--border)')}
-                    />
-                    <button
-                        onClick={() => fetchFeed(true)}
-                        disabled={loading || loadingMore}
-                        style={{
-                            padding: '10px 20px',
-                            borderRadius: 'var(--radius-sm)',
-                            background: loading ? 'rgba(124,106,247,0.2)' : 'var(--accent)',
-                            color: '#fff',
-                            fontSize: '13px',
-                            fontWeight: 600,
-                            transition: 'var(--transition)',
-                            whiteSpace: 'nowrap',
-                            opacity: loading ? 0.7 : 1,
-                        }}
-                    >
-                        {loading ? 'Loading…' : 'Load Feed'}
-                    </button>
-                </div>
+
 
                 {error && (
                     <div style={{
