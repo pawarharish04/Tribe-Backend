@@ -150,7 +150,22 @@ export async function GET(req: Request) {
             feedUsers = await fetchCandidates(true);
         }
 
-        // 4. Calculate Scores and Sort
+        // 4. Determine Mutual Matches (Identity Reveal Ladder)
+        const matchRecords = await prisma.matchUnlock.findMany({
+            where: {
+                OR: [
+                    { user1Id: userId },
+                    { user2Id: userId }
+                ]
+            },
+            select: { user1Id: true, user2Id: true }
+        });
+
+        const matchedUserIds = new Set(
+            matchRecords.map(m => (m.user1Id === userId ? m.user2Id : m.user1Id))
+        );
+
+        // 5. Calculate Scores and Sort
         const sortedFeed = feedUsers.map(u => {
             let distanceSq: number | null = null;
 
@@ -198,8 +213,22 @@ export async function GET(req: Request) {
                 ? (require('../../../lib/matching').getActivityFactor)(u.lastActiveAt)
                 : 1.0;
 
+            // Identity Reveal Restrictions
+            const isMatched = matchedUserIds.has(u.id);
+            const displayName = isMatched ? u.name : (u.name ? u.name.split(' ')[0] : 'Unknown');
+            const restrictedDistance = isMatched ? distanceKm : Math.round(distanceKm / 5) * 5;
+
             return {
-                ...u,
+                id: u.id,
+                displayName: displayName,
+                revealed: isMatched,
+                distanceKm: restrictedDistance,
+                interests: u.interests,
+                posts: u.interestPosts,
+                score: finalScore,
+
+                // Debug specific info
+                _name: u.name,
                 _distanceSq: distanceSq,
                 _interestScore: interestScore,
                 _distanceFactor: distanceFactor,

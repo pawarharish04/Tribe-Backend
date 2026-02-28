@@ -67,10 +67,14 @@ export default function DebugFeedPage() {
                     <div style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
                         {feedData.length === 0 && <p>No users found in feed.</p>}
                         {feedData.map((user, idx) => (
-                            <div key={user.id || idx} style={{ border: "1px solid #ccc", padding: "15px", borderRadius: "5px", background: "#f9f9f9", color: "#333" }}>
-                                <h3 style={{ margin: "0 0 10px 0" }}>#{idx + 1} - {user.name}</h3>
+                            <div key={user.id || idx} style={{ border: "1px solid #ccc", padding: "15px", borderRadius: "5px", background: "#f9f9f9", color: "#333", opacity: user.revealed ? 1 : 0.8 }}>
+                                <h3 style={{ margin: "0 0 10px 0", display: "flex", alignItems: "center", gap: "8px" }}>
+                                    #{idx + 1} - {user.displayName}
+                                    {user.revealed && <span style={{ fontSize: "10px", padding: "2px 6px", background: "#d4edda", color: "#155724", borderRadius: "12px", border: "1px solid #c3e6cb", display: "inline-block", transform: "translateY(-1px)" }}>🔓 REVEALED INSTANCE</span>}
+                                    {!user.revealed && <span style={{ fontSize: "10px", padding: "2px 6px", background: "#f8d7da", color: "#721c24", borderRadius: "12px", border: "1px solid #f5c6cb", display: "inline-block", transform: "translateY(-1px)" }}>🔒 LOCKED INSTANCE</span>}
+                                </h3>
                                 <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px", marginBottom: "10px" }}>
-                                    <div><strong>Distance:</strong> {calculateApproxKm(user._distanceSq)} {user._distanceSq !== null ? 'km' : ''}</div>
+                                    <div><strong>Distance:</strong> {user.distanceKm !== null ? user.distanceKm.toFixed(1) + ' km' : '?'} {user.revealed ? '(Exact)' : '(Approximate 5km Radius)'}</div>
                                     <div style={{ marginTop: "10px", fontSize: "12px", borderBottom: "1px solid #ccc", paddingBottom: "10px" }}>
                                         <div><strong>Interest Match Base:</strong> {user._interestScore?.toFixed(2) ?? 'N/A'}</div>
                                         <div><strong>Distance Factor:</strong> {user._distanceFactor?.toFixed(2) ?? 'N/A'}</div>
@@ -89,16 +93,16 @@ export default function DebugFeedPage() {
                                 </div>
 
                                 <div style={{ marginTop: "10px" }}>
-                                    <strong>Interest Posts ({user.interestPosts?.length ?? 0}):</strong>
+                                    <strong>Interest Posts ({user.posts?.length ?? 0}):</strong>
                                     <div style={{ marginTop: "10px" }}>
                                         <strong>Final Score:</strong> <span style={{ fontSize: "18px", color: "green" }}>{user._finalScore?.toFixed(2) ?? 'N/A'}</span>
                                         <span style={{ fontSize: "11px", color: "#666", marginLeft: "6px" }}>
                                             ({user._interestScore?.toFixed(2) ?? 'N/A'} × dist:{user._distanceFactor?.toFixed(2) ?? 'N/A'} × act:{user._activityFactor?.toFixed(2) || "1.00"})
                                         </span>
                                     </div>
-                                    {user.interestPosts && user.interestPosts.length > 0 ? (
+                                    {user.posts && user.posts.length > 0 ? (
                                         <div style={{ display: "flex", flexDirection: "column", gap: "6px", marginTop: "6px" }}>
-                                            {user.interestPosts.map((post: any, pIdx: number) => (
+                                            {user.posts.map((post: any, pIdx: number) => (
                                                 <div key={pIdx} style={{ background: "#eee", padding: "8px", borderRadius: "4px", fontSize: "12px", border: "1px solid #ddd" }}>
                                                     <div><strong>#{pIdx + 1}</strong> — Interest: <em>{post.interest?.name ?? post.interestId}</em></div>
                                                     {post.caption && <div style={{ color: "#555", marginTop: "2px" }}>"{post.caption}"</div>}
