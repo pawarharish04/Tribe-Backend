@@ -497,7 +497,8 @@ export default function FeedPage() {
         if (jwt) {
             fetchFeed(true);
         }
-    }, [jwt, fetchFeed]);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [jwt]);
 
     return (
         <div style={{
