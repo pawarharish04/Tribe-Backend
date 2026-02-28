@@ -15,5 +15,5 @@ export function middleware(request: NextRequest) {
 }
 
 export const config = {
-    matcher: ['/feed', '/matches', '/profile/:path*'],
+    matcher: ['/feed', '/matches', '/profile/:path*', '/activity', '/onboarding'],
 };

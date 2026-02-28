@@ -207,15 +207,19 @@ export default function MatchesPage() {
                     <span style={{ fontWeight: 600, fontSize: '16px', letterSpacing: '-0.02em', color: '#fff' }}>Tribe</span>
                 </Link>
                 <nav style={{ display: 'flex', gap: '4px' }}>
-                    {['Feed', 'Matches'].map((item, i) => (
-                        <Link key={item} href={`/${item.toLowerCase()}`} style={{
+                    {[
+                        { label: 'Feed', href: '/feed' },
+                        { label: 'Matches', href: '/matches' },
+                        { label: 'Activity', href: '/activity' },
+                    ].map(item => (
+                        <Link key={item.label} href={item.href} style={{
                             padding: '6px 14px', borderRadius: '8px', fontSize: '13px', fontWeight: 500,
                             textDecoration: 'none',
-                            color: item === 'Matches' ? 'var(--accent)' : 'var(--text-secondary)',
-                            background: item === 'Matches' ? 'var(--accent-soft)' : 'transparent',
+                            color: item.href === '/matches' ? 'var(--accent)' : 'var(--text-secondary)',
+                            background: item.href === '/matches' ? 'var(--accent-soft)' : 'transparent',
                             transition: 'var(--transition)',
                         }}>
-                            {item}
+                            {item.label}
                         </Link>
                     ))}
                 </nav>
