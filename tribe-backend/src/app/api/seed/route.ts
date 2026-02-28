@@ -3,7 +3,6 @@ import { prisma } from '../../../lib/prisma';
 import { calculateDistanceSq, calculateInterestScore, calculateFinalMatchScore, getDistanceFactor } from '../../../lib/matching';
 import jwt from 'jsonwebtoken';
 
-const NUM_USERS = 50;
 const BASE_LAT = 37.7749; // Mock Origin (San Francisco)
 const BASE_LON = -122.4194;
 const MAX_LAT_OFFSET = 1.0; // up to ~111km away
@@ -28,8 +27,12 @@ function pickRandomItems<T>(arr: T[], count: number): T[] {
     return shuffled.slice(0, count);
 }
 
-export async function GET() {
+export async function GET(req: Request) {
     try {
+        const url = new URL(req.url);
+        const countParam = url.searchParams.get('count');
+        const NUM_USERS = countParam ? parseInt(countParam, 10) : 50;
+
         const existingInterests = await prisma.interest.findMany();
         const existingMap = new Map(existingInterests.map(i => [i.name, i]));
 

@@ -21,6 +21,7 @@ interface FeedCandidate {
     displayName: string;
     revealed: boolean;
     distanceKm: number;
+    lastActiveAt?: string | null;
     score: number;
     interests: Interest[];
     posts: Post[];
@@ -48,10 +49,20 @@ function FeedCard({
 }) {
     const [acting, setActing] = useState<'like' | 'pass' | null>(null);
     const [done, setDone] = useState<'like' | 'pass' | null>(null);
+    const [swiping, setSwiping] = useState<'left' | 'right' | null>(null);
 
     const handleAction = useCallback(async (type: 'LIKE' | 'PASS') => {
         const key = type === 'LIKE' ? 'like' : 'pass';
+        if (acting || swiping) return;
         setActing(key);
+        setSwiping(type === 'LIKE' ? 'right' : 'left');
+
+        // Optimistically hide card after short swipe anim
+        setTimeout(() => {
+            setDone(key);
+            if (type === 'LIKE') onLike(user.id);
+            else onPass(user.id);
+        }, 300);
         try {
             const res = await fetch('/api/interactions', {
                 method: 'POST',
@@ -62,20 +73,19 @@ function FeedCard({
                 body: JSON.stringify({ targetId: user.id, action: type }),
             });
             const data = await res.json();
-            setDone(key);
-            if (type === 'LIKE') onLike(user.id);
-            else onPass(user.id);
             if (data.match) {
                 // Emit match event (handled by parent)
                 window.dispatchEvent(new CustomEvent('tribe:match', { detail: { name: user.displayName } }));
             }
         } catch {
             setActing(null);
+            setSwiping(null);
         }
-    }, [user.id, jwt, onLike, onPass]);
+    }, [user.id, jwt, onLike, onPass, acting, swiping]);
 
     const compatPercent = Math.round(user.score);
     const isRevealed = user.revealed;
+    const isRecentlyActive = user.lastActiveAt && (Date.now() - new Date(user.lastActiveAt).getTime() < 6 * 3600 * 1000);
 
     const compatColor = compatPercent >= 70
         ? 'var(--green)'
@@ -84,26 +94,15 @@ function FeedCard({
             : 'var(--text-secondary)';
 
     if (done) {
-        return (
-            <div style={{
-                border: '1px solid var(--border)',
-                borderRadius: 'var(--radius)',
-                padding: '24px',
-                background: 'var(--bg-card)',
-                opacity: 0.4,
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                gap: '8px',
-                minHeight: '80px',
-                color: 'var(--text-muted)',
-                fontSize: '13px',
-                transition: 'var(--transition)',
-            }}>
-                {done === 'like' ? '👍 Liked' : '👋 Passed'}
-            </div>
-        );
+        return null;
     }
+
+    // Dynamic swipe transform mapped to Like/Pass intention
+    const transformStyle = swiping === 'right'
+        ? 'translateX(100vw) rotate(10deg)'
+        : swiping === 'left'
+            ? 'translateX(-100vw) rotate(-10deg)'
+            : 'translateX(0)';
 
     return (
         <div style={{
@@ -114,9 +113,24 @@ function FeedCard({
                 ? '0 0 0 1px rgba(74,222,128,0.1), var(--shadow-card)'
                 : 'var(--shadow-card)',
             overflow: 'hidden',
-            transition: 'var(--transition)',
             position: 'relative',
-        }}>
+            cursor: 'default',
+            transition: 'transform 0.4s cubic-bezier(0.2, 0.8, 0.2, 1), opacity 0.3s ease-out, box-shadow 0.2s ease, border-color 0.2s ease',
+            transform: transformStyle,
+            opacity: swiping ? 0 : 1,
+        }}
+            onMouseEnter={(e) => {
+                if (!swiping && !isRevealed) {
+                    e.currentTarget.style.boxShadow = '0 8px 32px rgba(0,0,0,0.4)';
+                    e.currentTarget.style.borderColor = 'rgba(255,255,255,0.08)';
+                }
+            }}
+            onMouseLeave={(e) => {
+                if (!swiping && !isRevealed) {
+                    e.currentTarget.style.boxShadow = 'var(--shadow-card)';
+                    e.currentTarget.style.borderColor = 'var(--border)';
+                }
+            }}>
 
             {/* Reveal Strip */}
             <div style={{
@@ -735,8 +749,13 @@ export default function FeedPage() {
 
             <style>{`
         @keyframes pulse {
-          0%, 100% { opacity: 0.4; }
-          50% { opacity: 0.7; }
+          0%, 100% { opacity: 0.4; transform: scale(1); }
+          50% { opacity: 0.7; transform: scale(1.02); }
+        }
+        @keyframes pulse-dot {
+          0% { transform: scale(0.95); opacity: 0.8; }
+          50% { transform: scale(1.15); opacity: 1; box-shadow: 0 0 12px var(--green); }
+          100% { transform: scale(0.95); opacity: 0.8; }
         }
       `}</style>
         </div>

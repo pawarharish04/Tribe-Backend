@@ -232,6 +232,7 @@ export async function GET(req: Request) {
                 displayName: displayName,
                 revealed: isMatched,
                 distanceKm: restrictedDistance,
+                lastActiveAt: u.lastActiveAt,
                 interests: u.interests,
                 posts: u.interestPosts,
                 score: finalScore,
@@ -310,14 +311,7 @@ export async function GET(req: Request) {
             console.log(JSON.stringify({
                 event: 'feed_generated',
                 durationMs: Math.round(endTime - startTime),
-                candidatesEvaluated: feedUsers.length,
-                returnedCount: paginatedFeed.length,
-                topScores: paginatedFeed.slice(0, 3).map(u => ({
-                    id: u.id,
-                    finalScore: u._finalScore,
-                    interestScore: u._interestScore,
-                    distanceFactor: u._distanceFactor
-                }))
+                candidateCount: feedUsers.length
             }));
         }
 
