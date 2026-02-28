@@ -44,6 +44,9 @@ export default function ChatPage() {
     const bottomRef = useRef<HTMLDivElement>(null);
     const inputRef = useRef<HTMLTextAreaElement>(null);
     const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+    // Track which message IDs have already been rendered — new ones fade in
+    const seenIdsRef = useRef<Set<string>>(new Set());
+    const [newIds, setNewIds] = useState<Set<string>>(new Set());
 
     // Auth + match metadata
     useEffect(() => {
@@ -81,7 +84,28 @@ export default function ChatPage() {
                 return;
             }
             const data = await res.json();
-            setMessages(data.messages ?? []);
+            const incoming: Message[] = data.messages ?? [];
+
+            // Determine which IDs are brand new (not yet seen)
+            const freshIds = new Set<string>();
+            for (const msg of incoming) {
+                if (!seenIdsRef.current.has(msg.id)) {
+                    freshIds.add(msg.id);
+                }
+            }
+
+            // Mark all incoming as seen immediately
+            for (const msg of incoming) {
+                seenIdsRef.current.add(msg.id);
+            }
+
+            setMessages(incoming);
+
+            if (freshIds.size > 0) {
+                setNewIds(freshIds);
+                // Clear animation class after it completes so re-polls don't re-trigger
+                setTimeout(() => setNewIds(new Set()), 300);
+            }
         } catch {
             if (!silent) setLoadError('Failed to load messages.');
         } finally {
@@ -109,13 +133,14 @@ export default function ChatPage() {
         if (!content || sending || !jwt) return;
 
         setSending(true);
-        // Optimistic insert
+        // Optimistic insert — mark as seen immediately so it doesn't re-animate on confirm
         const optimistic: Message = {
             id: `opt-${Date.now()}`,
             senderId: myId,
             content,
             createdAt: new Date().toISOString(),
         };
+        seenIdsRef.current.add(optimistic.id);
         setMessages(prev => [...prev, optimistic]);
         setInput('');
 
@@ -168,235 +193,251 @@ export default function ChatPage() {
     }
 
     return (
-        <div style={{
-            minHeight: '100vh',
-            background: 'var(--bg)',
-            display: 'flex',
-            flexDirection: 'column',
-        }}>
-            {/* Header */}
-            <header style={{
-                position: 'sticky', top: 0, zIndex: 100,
-                borderBottom: '1px solid var(--border)',
-                background: 'rgba(12,12,14,0.95)',
-                backdropFilter: 'blur(16px)',
-                padding: '0 20px',
-                height: '56px',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '14px',
-            }}>
-                <Link href="/matches" style={{
-                    color: 'var(--text-secondary)',
-                    textDecoration: 'none',
-                    fontSize: '18px',
-                    lineHeight: 1,
-                    flexShrink: 0,
-                    padding: '4px',
-                }}>←</Link>
-
-                <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{
-                        fontWeight: 600,
-                        fontSize: '15px',
-                        color: 'var(--text-primary)',
-                        letterSpacing: '-0.01em',
-                        overflow: 'hidden',
-                        textOverflow: 'ellipsis',
-                        whiteSpace: 'nowrap',
-                    }}>
-                        {partnerName}
-                    </div>
-                    <div style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
-                        Mutual match · Tribe
-                    </div>
-                </div>
-            </header>
-
-            {/* Error state */}
-            {loadError && (
-                <div style={{
-                    padding: '12px 20px',
-                    background: 'var(--red-soft)',
-                    color: 'var(--red)',
-                    fontSize: '13px',
-                    textAlign: 'center',
-                }}>
-                    {loadError}
-                </div>
-            )}
-
-            {/* Message list */}
+        <>
             <div style={{
-                flex: 1,
-                overflowY: 'auto',
-                padding: '20px 16px',
+                minHeight: '100vh',
+                background: 'var(--bg)',
                 display: 'flex',
                 flexDirection: 'column',
-                gap: '2px',
-                maxWidth: '700px',
-                width: '100%',
-                margin: '0 auto',
             }}>
+                {/* Header */}
+                <header style={{
+                    position: 'sticky', top: 0, zIndex: 100,
+                    borderBottom: '1px solid var(--border)',
+                    background: 'rgba(12,12,14,0.95)',
+                    backdropFilter: 'blur(16px)',
+                    padding: '0 20px',
+                    height: '56px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '14px',
+                }}>
+                    <Link href="/matches" style={{
+                        color: 'var(--text-secondary)',
+                        textDecoration: 'none',
+                        fontSize: '18px',
+                        lineHeight: 1,
+                        flexShrink: 0,
+                        padding: '4px',
+                    }}>←</Link>
 
-                {initialLoad && (
-                    <div style={{ textAlign: 'center', color: 'var(--text-muted)', fontSize: '13px', padding: '40px 0' }}>
-                        Loading messages...
-                    </div>
-                )}
-
-                {!initialLoad && messages.length === 0 && !loadError && (
-                    <div style={{ textAlign: 'center', padding: '60px 20px', color: 'var(--text-muted)' }}>
-                        <div style={{ fontSize: '32px', marginBottom: '14px' }}>✉️</div>
-                        <div style={{ fontSize: '15px', fontWeight: 500, color: 'var(--text-secondary)', marginBottom: '8px' }}>
-                            Start the conversation
-                        </div>
-                        <div style={{ fontSize: '13px', lineHeight: 1.6 }}>
-                            You and {partnerName} matched.<br />Say something genuine.
-                        </div>
-                    </div>
-                )}
-
-                {grouped.map(group => (
-                    <div key={group.date}>
-                        {/* Date separator */}
+                    <div style={{ flex: 1, minWidth: 0 }}>
                         <div style={{
-                            display: 'flex',
-                            alignItems: 'center',
-                            gap: '10px',
-                            margin: '16px 0 12px',
+                            fontWeight: 600,
+                            fontSize: '15px',
+                            color: 'var(--text-primary)',
+                            letterSpacing: '-0.01em',
+                            overflow: 'hidden',
+                            textOverflow: 'ellipsis',
+                            whiteSpace: 'nowrap',
                         }}>
-                            <div style={{ flex: 1, height: '1px', background: 'var(--border-subtle)' }} />
-                            <span style={{
-                                fontSize: '11px',
-                                color: 'var(--text-muted)',
-                                fontWeight: 500,
-                                letterSpacing: '0.04em',
-                                textTransform: 'uppercase',
-                            }}>
-                                {formatDateSeparator(group.messages[0].createdAt)}
-                            </span>
-                            <div style={{ flex: 1, height: '1px', background: 'var(--border-subtle)' }} />
+                            {partnerName}
                         </div>
+                        <div style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
+                            Mutual match · Tribe
+                        </div>
+                    </div>
+                </header>
 
-                        {/* Messages in this date group */}
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                            {group.messages.map((msg, i) => {
-                                const isMine = msg.senderId === myId;
-                                const prevMsg = group.messages[i - 1];
-                                const isSameAuthor = prevMsg && prevMsg.senderId === msg.senderId;
+                {/* Error state */}
+                {loadError && (
+                    <div style={{
+                        padding: '12px 20px',
+                        background: 'var(--red-soft)',
+                        color: 'var(--red)',
+                        fontSize: '13px',
+                        textAlign: 'center',
+                    }}>
+                        {loadError}
+                    </div>
+                )}
 
-                                return (
-                                    <div key={msg.id} style={{
-                                        display: 'flex',
-                                        flexDirection: isMine ? 'row-reverse' : 'row',
-                                        alignItems: 'flex-end',
-                                        gap: '8px',
-                                        marginTop: isSameAuthor ? '0' : '8px',
-                                    }}>
-                                        <div style={{
-                                            maxWidth: '72%',
-                                            padding: '10px 14px',
-                                            borderRadius: isMine
-                                                ? '18px 18px 4px 18px'
-                                                : '18px 18px 18px 4px',
-                                            background: isMine
-                                                ? 'var(--accent)'
-                                                : 'rgba(255,255,255,0.06)',
-                                            border: isMine
-                                                ? 'none'
-                                                : '1px solid var(--border)',
-                                            color: isMine ? '#fff' : 'var(--text-primary)',
-                                            fontSize: '14px',
-                                            lineHeight: 1.5,
-                                            wordBreak: 'break-word',
-                                            opacity: msg.id.startsWith('opt-') ? 0.7 : 1,
-                                            transition: 'opacity 0.2s ease',
+                {/* Message list */}
+                <div style={{
+                    flex: 1,
+                    overflowY: 'auto',
+                    padding: '20px 16px',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: '2px',
+                    maxWidth: '700px',
+                    width: '100%',
+                    margin: '0 auto',
+                }}>
+
+                    {initialLoad && (
+                        <div style={{ textAlign: 'center', color: 'var(--text-muted)', fontSize: '13px', padding: '40px 0' }}>
+                            Loading messages...
+                        </div>
+                    )}
+
+                    {!initialLoad && messages.length === 0 && !loadError && (
+                        <div style={{ textAlign: 'center', padding: '60px 20px', color: 'var(--text-muted)' }}>
+                            <div style={{ fontSize: '32px', marginBottom: '14px' }}>✉️</div>
+                            <div style={{ fontSize: '15px', fontWeight: 500, color: 'var(--text-secondary)', marginBottom: '8px' }}>
+                                Start the conversation
+                            </div>
+                            <div style={{ fontSize: '13px', lineHeight: 1.6 }}>
+                                You and {partnerName} matched.<br />Say something genuine.
+                            </div>
+                        </div>
+                    )}
+
+                    {grouped.map(group => (
+                        <div key={group.date}>
+                            {/* Date separator */}
+                            <div style={{
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: '10px',
+                                margin: '16px 0 12px',
+                            }}>
+                                <div style={{ flex: 1, height: '1px', background: 'var(--border-subtle)' }} />
+                                <span style={{
+                                    fontSize: '11px',
+                                    color: 'var(--text-muted)',
+                                    fontWeight: 500,
+                                    letterSpacing: '0.04em',
+                                    textTransform: 'uppercase',
+                                }}>
+                                    {formatDateSeparator(group.messages[0].createdAt)}
+                                </span>
+                                <div style={{ flex: 1, height: '1px', background: 'var(--border-subtle)' }} />
+                            </div>
+
+                            {/* Messages in this date group */}
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                                {group.messages.map((msg, i) => {
+                                    const isMine = msg.senderId === myId;
+                                    const prevMsg = group.messages[i - 1];
+                                    const isSameAuthor = prevMsg && prevMsg.senderId === msg.senderId;
+
+                                    return (
+                                        <div key={msg.id} style={{
+                                            display: 'flex',
+                                            flexDirection: isMine ? 'row-reverse' : 'row',
+                                            alignItems: 'flex-end',
+                                            gap: '8px',
+                                            marginTop: isSameAuthor ? '0' : '8px',
+                                            animation: newIds.has(msg.id) ? 'msg-enter 0.18s ease-out both' : 'none',
                                         }}>
-                                            {msg.content}
                                             <div style={{
-                                                fontSize: '10px',
-                                                marginTop: '4px',
-                                                color: isMine ? 'rgba(255,255,255,0.55)' : 'var(--text-muted)',
-                                                textAlign: isMine ? 'right' : 'left',
+                                                maxWidth: '72%',
+                                                padding: '10px 14px',
+                                                borderRadius: isMine
+                                                    ? '18px 18px 4px 18px'
+                                                    : '18px 18px 18px 4px',
+                                                background: isMine
+                                                    ? 'var(--accent)'
+                                                    : 'rgba(255,255,255,0.06)',
+                                                border: isMine
+                                                    ? 'none'
+                                                    : '1px solid var(--border)',
+                                                color: isMine ? '#fff' : 'var(--text-primary)',
+                                                fontSize: '14px',
+                                                lineHeight: 1.5,
+                                                wordBreak: 'break-word',
+                                                opacity: msg.id.startsWith('opt-') ? 0.7 : 1,
+                                                transition: 'opacity 0.2s ease',
                                             }}>
-                                                {formatTime(msg.createdAt)}
-                                                {msg.id.startsWith('opt-') && ' · sending'}
+                                                {msg.content}
+                                                <div style={{
+                                                    fontSize: '10px',
+                                                    marginTop: '4px',
+                                                    color: isMine ? 'rgba(255,255,255,0.55)' : 'var(--text-muted)',
+                                                    textAlign: isMine ? 'right' : 'left',
+                                                }}>
+                                                    {formatTime(msg.createdAt)}
+                                                    {msg.id.startsWith('opt-') && ' · sending'}
+                                                </div>
                                             </div>
                                         </div>
-                                    </div>
-                                );
-                            })}
+                                    );
+                                })}
+                            </div>
                         </div>
-                    </div>
-                ))}
+                    ))}
 
-                {/* Scroll anchor */}
-                <div ref={bottomRef} />
+                    {/* Scroll anchor */}
+                    <div ref={bottomRef} />
+                </div>
+
+                {/* Input bar */}
+                <div style={{
+                    borderTop: '1px solid var(--border)',
+                    background: 'rgba(12,12,14,0.97)',
+                    padding: '12px 16px',
+                    display: 'flex',
+                    gap: '10px',
+                    alignItems: 'flex-end',
+                    maxWidth: '700px',
+                    width: '100%',
+                    margin: '0 auto',
+                }}>
+                    <textarea
+                        ref={inputRef}
+                        value={input}
+                        onChange={e => setInput(e.target.value)}
+                        onKeyDown={handleKeyDown}
+                        placeholder="Type a message…"
+                        rows={1}
+                        maxLength={1000}
+                        style={{
+                            flex: 1,
+                            background: 'rgba(255,255,255,0.05)',
+                            border: '1px solid var(--border)',
+                            borderRadius: '12px',
+                            padding: '10px 14px',
+                            color: 'var(--text-primary)',
+                            fontSize: '14px',
+                            resize: 'none',
+                            outline: 'none',
+                            lineHeight: 1.5,
+                            maxHeight: '120px',
+                            overflowY: 'auto',
+                            fontFamily: 'inherit',
+                            transition: 'border-color 0.15s ease',
+                        }}
+                        onFocus={e => (e.target.style.borderColor = 'var(--accent)')}
+                        onBlur={e => (e.target.style.borderColor = 'var(--border)')}
+                    />
+                    <button
+                        onClick={sendMessage}
+                        disabled={sending || !input.trim()}
+                        style={{
+                            width: '40px',
+                            height: '40px',
+                            borderRadius: '12px',
+                            background: input.trim() && !sending ? 'var(--accent)' : 'rgba(255,255,255,0.04)',
+                            border: '1px solid var(--border)',
+                            color: input.trim() && !sending ? '#fff' : 'var(--text-muted)',
+                            cursor: input.trim() && !sending ? 'pointer' : 'not-allowed',
+                            fontSize: '16px',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            flexShrink: 0,
+                            transition: 'background 0.15s ease, color 0.15s ease',
+                        }}
+                        title="Send (Enter)"
+                    >
+                        ↑
+                    </button>
+                </div>
             </div>
 
-            {/* Input bar */}
-            <div style={{
-                borderTop: '1px solid var(--border)',
-                background: 'rgba(12,12,14,0.97)',
-                padding: '12px 16px',
-                display: 'flex',
-                gap: '10px',
-                alignItems: 'flex-end',
-                maxWidth: '700px',
-                width: '100%',
-                margin: '0 auto',
-            }}>
-                <textarea
-                    ref={inputRef}
-                    value={input}
-                    onChange={e => setInput(e.target.value)}
-                    onKeyDown={handleKeyDown}
-                    placeholder="Type a message…"
-                    rows={1}
-                    maxLength={1000}
-                    style={{
-                        flex: 1,
-                        background: 'rgba(255,255,255,0.05)',
-                        border: '1px solid var(--border)',
-                        borderRadius: '12px',
-                        padding: '10px 14px',
-                        color: 'var(--text-primary)',
-                        fontSize: '14px',
-                        resize: 'none',
-                        outline: 'none',
-                        lineHeight: 1.5,
-                        maxHeight: '120px',
-                        overflowY: 'auto',
-                        fontFamily: 'inherit',
-                        transition: 'border-color 0.15s ease',
-                    }}
-                    onFocus={e => (e.target.style.borderColor = 'var(--accent)')}
-                    onBlur={e => (e.target.style.borderColor = 'var(--border)')}
-                />
-                <button
-                    onClick={sendMessage}
-                    disabled={sending || !input.trim()}
-                    style={{
-                        width: '40px',
-                        height: '40px',
-                        borderRadius: '12px',
-                        background: input.trim() && !sending ? 'var(--accent)' : 'rgba(255,255,255,0.04)',
-                        border: '1px solid var(--border)',
-                        color: input.trim() && !sending ? '#fff' : 'var(--text-muted)',
-                        cursor: input.trim() && !sending ? 'pointer' : 'not-allowed',
-                        fontSize: '16px',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        flexShrink: 0,
-                        transition: 'background 0.15s ease, color 0.15s ease',
-                    }}
-                    title="Send (Enter)"
-                >
-                    ↑
-                </button>
-            </div>
-        </div>
+            <style>{`
+            @keyframes msg-enter {
+                from {
+                    opacity: 0;
+                    transform: translateY(6px);
+                }
+                to {
+                    opacity: 1;
+                    transform: translateY(0);
+                }
+            }
+        `}</style>
+        </>
     );
 }
