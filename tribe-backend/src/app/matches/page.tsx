@@ -119,27 +119,46 @@ function MatchCard({ match }: { match: MatchPayload }) {
                 </div>
             )}
 
-            {/* Action */}
-            <a href={`/profile/${match.id}`} style={{
-                marginTop: '8px',
-                padding: '12px 0',
-                width: '100%',
-                borderRadius: 'var(--radius-sm)',
-                background: 'var(--bg)',
-                border: '1px solid var(--border)',
-                color: 'var(--text-primary)',
-                fontSize: '14px',
-                fontWeight: 600,
-                cursor: 'pointer',
-                transition: 'var(--transition)',
-                textAlign: 'center',
-                display: 'block',
-                textDecoration: 'none'
-            }}
-                onMouseEnter={e => { (e.target as HTMLElement).style.background = 'var(--border-subtle)' }}
-                onMouseLeave={e => { (e.target as HTMLElement).style.background = 'var(--bg)' }}>
-                Open Profile
-            </a>
+            {/* Actions */}
+            <div style={{ display: 'flex', gap: '8px', marginTop: '4px' }}>
+                <Link href={`/matches/${match.matchId}`} style={{
+                    flex: 2,
+                    padding: '11px 0',
+                    borderRadius: 'var(--radius-sm)',
+                    background: 'var(--accent)',
+                    color: '#fff',
+                    fontSize: '14px',
+                    fontWeight: 600,
+                    cursor: 'pointer',
+                    textAlign: 'center',
+                    textDecoration: 'none',
+                    transition: 'var(--transition)',
+                }}
+                    onMouseEnter={e => (e.currentTarget.style.opacity = '0.85')}
+                    onMouseLeave={e => (e.currentTarget.style.opacity = '1')}
+                >
+                    Message
+                </Link>
+                <Link href={`/profile/${match.id}`} style={{
+                    flex: 1,
+                    padding: '11px 0',
+                    borderRadius: 'var(--radius-sm)',
+                    background: 'var(--bg)',
+                    border: '1px solid var(--border)',
+                    color: 'var(--text-secondary)',
+                    fontSize: '14px',
+                    fontWeight: 500,
+                    cursor: 'pointer',
+                    textAlign: 'center',
+                    textDecoration: 'none',
+                    transition: 'var(--transition)',
+                }}
+                    onMouseEnter={e => (e.currentTarget.style.borderColor = 'var(--text-muted)')}
+                    onMouseLeave={e => (e.currentTarget.style.borderColor = 'var(--border)')}
+                >
+                    Profile
+                </Link>
+            </div>
 
         </div>
     );

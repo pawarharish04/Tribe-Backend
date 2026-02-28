@@ -37,6 +37,7 @@ model User {
   media             Media[]
   interestPosts     InterestPost[]
   postLikes         PostLike[]
+  sentMessages      Message[]
   viewerImpressions FeedImpression[] @relation("ViewerImpressions")
   targetImpressions FeedImpression[] @relation("TargetImpressions")
 
@@ -120,6 +121,8 @@ model MatchUnlock {
 
   createdAt DateTime @default(now())
 
+  messages Message[]
+
   @@unique([user1Id, user2Id])
 }
 
@@ -177,4 +180,18 @@ model PostLike {
 
   @@unique([postId, likerId])
   @@index([likerId])
+}
+
+model Message {
+  id        String   @id @default(uuid())
+  matchId   String
+  senderId  String
+  content   String
+  createdAt DateTime @default(now())
+
+  match     MatchUnlock @relation(fields: [matchId], references: [id], onDelete: Cascade)
+  sender    User        @relation(fields: [senderId], references: [id], onDelete: Cascade)
+
+  @@index([matchId])
+  @@index([senderId])
 }
