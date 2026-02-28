@@ -109,13 +109,19 @@ export default function ProfilePage() {
         if (!profile || !jwt) return;
         setActing(action === 'LIKE' ? 'like' : 'pass');
         try {
-            await fetch('/api/interactions', {
+            const res = await fetch('/api/interactions', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${jwt}` },
-                body: JSON.stringify({ targetId: profile.id, action })
+                body: JSON.stringify({ targetId: profile.id, type: action }) // `type` not `action`
             });
-            // Route back to feed after interaction from Profile
-            router.push('/feed');
+            const data = await res.json();
+            if (data.matched) {
+                // It's a mutual match — route to matches so they see the reveal
+                router.push('/matches');
+            } else {
+                // Normal like/pass — return to feed
+                router.push('/feed');
+            }
         } catch {
             setActing(null);
         }

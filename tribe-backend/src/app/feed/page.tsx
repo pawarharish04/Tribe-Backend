@@ -173,10 +173,10 @@ function FeedCard({
                     'Content-Type': 'application/json',
                     Authorization: `Bearer ${jwt}`,
                 },
-                body: JSON.stringify({ targetId: user.id, action: type }),
+                body: JSON.stringify({ targetId: user.id, type }), // API expects `type`, not `action`
             });
             const data = await res.json();
-            if (data.match) {
+            if (data.matched) { // API returns `matched`, not `match`
                 // Emit match event (handled by parent)
                 window.dispatchEvent(new CustomEvent('tribe:match', { detail: { name: user.displayName } }));
             }
