@@ -1,110 +1,93 @@
-import { cookies } from 'next/headers';
-import { redirect } from 'next/navigation';
-import { prisma } from '../../../lib/prisma';
-import { getUserIdFromRequest } from '../../../lib/auth';
-import ProfileEditor from '../../../components/profile/ProfileEditor';
+'use client';
 
-/**
- * /me  – Profile editor page
- *
- * This is a Server Component: it fetches all data on the server and passes
- * it to the <ProfileEditor /> Client Component as props.
- *
- * Auth: reads the JWT from the Authorization header via a fake Request built
- * from the cookie stored as `tribe_token`. Falls back to redirect to /login.
- */
-export default async function MePage() {
-    // Build a fake Request so we can reuse getUserIdFromRequest
-    const cookieStore = await cookies();
-    const token = cookieStore.get('tribe_token')?.value;
+import { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
+import ProfileEditor, { type ProfileData, type Stats } from '../../../components/profile/ProfileEditor';
 
-    let userId: string | null = null;
-    if (token) {
-        const fakeReq = new Request('http://localhost', {
-            headers: { Authorization: `Bearer ${token}` },
-        });
-        userId = getUserIdFromRequest(fakeReq);
+export default function MePage() {
+    const router = useRouter();
+    const [jwt, setJwt] = useState('');
+    const [profile, setProfile] = useState<ProfileData | null>(null);
+    const [stats, setStats] = useState<Stats | null>(null);
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState('');
+
+    useEffect(() => {
+        const stored = localStorage.getItem('tribe_jwt');
+        if (!stored) {
+            router.push('/login');
+            return;
+        }
+        setJwt(stored);
+
+        // Fetch profile data from /api/me using the JWT from localStorage
+        fetch('/api/me', {
+            headers: { Authorization: `Bearer ${stored}` },
+        })
+            .then(res => {
+                if (res.status === 401) {
+                    router.push('/login');
+                    return null;
+                }
+                return res.json();
+            })
+            .then(data => {
+                if (!data) return;
+                if (data.error) {
+                    setError(data.error);
+                    return;
+                }
+                // Normalize dates
+                const p: ProfileData = {
+                    ...data.user,
+                    interestPosts: (data.user.interestPosts ?? []).map((post: any) => ({
+                        ...post,
+                        createdAt: typeof post.createdAt === 'string'
+                            ? post.createdAt
+                            : new Date(post.createdAt).toISOString(),
+                    })),
+                };
+                setProfile(p);
+                setStats(data.stats);
+            })
+            .catch(() => setError('Failed to load profile.'))
+            .finally(() => setLoading(false));
+    }, [router]);
+
+    if (loading) {
+        return (
+            <div style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                minHeight: 'calc(100vh - 56px)',
+                color: 'var(--text-muted)',
+                fontSize: '14px',
+            }}>
+                Loading profile…
+            </div>
+        );
     }
 
-    if (!userId) {
-        // No valid server-side token — client pages handle the redirect via
-        // localStorage, but if the server can't auth, send to login.
-        redirect('/login');
+    if (error) {
+        return (
+            <div style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                minHeight: 'calc(100vh - 56px)',
+                flexDirection: 'column',
+                gap: '12px',
+                color: 'var(--red)',
+                fontSize: '14px',
+            }}>
+                <div style={{ fontSize: '32px' }}>⚠️</div>
+                {error}
+            </div>
+        );
     }
 
-    // Fetch profile
-    const user = await prisma.user.findUnique({
-        where: { id: userId },
-        select: {
-            id: true,
-            name: true,
-            email: true,
-            bio: true,
-            avatarUrl: true,
-            locationEnabled: true,
-            interests: {
-                select: {
-                    id: true,
-                    level: true,
-                    interest: { select: { id: true, name: true } },
-                },
-                orderBy: { level: 'desc' },
-            },
-            interestPosts: {
-                select: {
-                    id: true,
-                    caption: true,
-                    createdAt: true,
-                    interest: { select: { id: true, name: true } },
-                    media: { select: { id: true, url: true, type: true } },
-                    _count: { select: { likes: true } },
-                },
-                orderBy: { createdAt: 'desc' },
-            },
-        },
-    });
+    if (!profile || !stats) return null;
 
-    if (!user) redirect('/login');
-
-    // Stats
-    const [matchCount, postLikeCount, messageCount] = await Promise.all([
-        prisma.matchUnlock.count({
-            where: { OR: [{ user1Id: userId }, { user2Id: userId }] },
-        }),
-        prisma.postLike.count({
-            where: { post: { userId } },
-        }),
-        prisma.message.count({
-            where: { senderId: userId },
-        }),
-    ]);
-
-    // ProfileEditor is a client component — it needs the JWT to make PATCH
-    // calls. Since the page is server-rendered and the token is in a cookie,
-    // pass it down so the client does not re-read localStorage.
-    const jwt = token ?? '';
-
-    return (
-        <ProfileEditor
-            profile={{
-                id: user.id,
-                name: user.name,
-                email: user.email,
-                bio: user.bio,
-                avatarUrl: user.avatarUrl,
-                locationEnabled: user.locationEnabled,
-                interests: user.interests.map(i => ({ ...i, level: i.level ?? 1 })),
-                interestPosts: user.interestPosts.map(p => ({
-                    ...p,
-                    createdAt: p.createdAt.toISOString(),
-                })),
-            }}
-            stats={{
-                matches: matchCount,
-                postLikes: postLikeCount,
-                messagesSent: messageCount,
-            }}
-            jwt={jwt}
-        />
-    );
+    return <ProfileEditor profile={profile} stats={stats} jwt={jwt} />;
 }

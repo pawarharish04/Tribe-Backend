@@ -22,6 +22,8 @@ model User {
   bio             String?
   avatarUrl       String?
   locationEnabled Boolean @default(false)
+  distanceVisibility Boolean @default(true)
+  activityVisibility Boolean @default(true)
 
   // Geo-location fields
   latitude  Float?
