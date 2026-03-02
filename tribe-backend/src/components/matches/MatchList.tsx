@@ -6,10 +6,13 @@ export interface MatchListItem {
     matchId: string;
     id: string;          // partner userId
     name: string;
+    distanceKm: number | null;
+    distanceHidden?: boolean;
     lastActiveAt: string | null;
     matchedAt: string;
     sharedInterests: string[];
 }
+
 
 function timeSince(dateString: string | null) {
     if (!dateString) return '';

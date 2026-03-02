@@ -106,6 +106,8 @@ export async function GET(req: Request) {
                         latitude: true,
                         longitude: true,
                         lastActiveAt: true,
+                        distanceVisibility: true,
+                        activityVisibility: true,
                         interests: {
                             select: {
                                 interestId: true,
@@ -134,6 +136,8 @@ export async function GET(req: Request) {
                         latitude: true,
                         longitude: true,
                         lastActiveAt: true,
+                        distanceVisibility: true,
+                        activityVisibility: true,
                         interests: {
                             select: {
                                 interestId: true,
@@ -233,23 +237,30 @@ export async function GET(req: Request) {
                 id: u.id,
                 displayName: displayName,
                 revealed: isMatched,
-                distanceKm: restrictedDistance,
-                lastActiveAt: u.lastActiveAt,
+                ...(u.distanceVisibility === false
+                    ? { distanceKm: null, distanceHidden: true }
+                    : { distanceKm: restrictedDistance }),
+                ...(u.activityVisibility === false
+                    ? {}
+                    : { lastActiveAt: u.lastActiveAt }),
                 interests: u.interests,
                 posts: u.interestPosts,
                 score: finalScore,
 
                 // Debug specific info
                 _name: u.name,
-                _distanceSq: distanceSq,
                 _interestScore: interestScore,
-                _distanceFactor: distanceFactor,
-                _activityFactor: activityFactor,
-                _momentumBoost: momentumBoost,
                 _exactMatches: breakdown.exactMatches,
                 _parentChildMatches: breakdown.parentChildMatches,
                 _sameCategoryMatches: breakdown.sameCategoryMatches,
-                _finalScore: finalScore
+                _finalScore: finalScore,
+
+                ...(u.distanceVisibility === false
+                    ? {}
+                    : { _distanceSq: distanceSq, _distanceFactor: distanceFactor }),
+                ...(u.activityVisibility === false
+                    ? {}
+                    : { _activityFactor: activityFactor, _momentumBoost: momentumBoost })
             };
         }).sort((a, b) => {
             // Sort Descending by _finalScore

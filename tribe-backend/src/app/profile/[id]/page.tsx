@@ -26,6 +26,7 @@ interface ProfilePayload {
     displayName: string;
     revealed: boolean;
     distanceKm: number | null;
+    distanceHidden?: boolean;
     exactDistance: boolean;
     lastActiveAt: string | null;
     score: number;
@@ -193,11 +194,17 @@ export default function ProfilePage() {
                     </h1>
 
                     <div style={{ color: 'var(--text-secondary)', fontSize: '14px', marginTop: '6px' }}>
-                        {profile.distanceKm !== null ? `${profile.distanceKm}${profile.exactDistance ? '.0' : ''} km away` : 'Unknown location'}
+                        {profile.distanceHidden
+                            ? 'Distance hidden'
+                            : profile.distanceKm !== null
+                                ? `${profile.distanceKm}${profile.exactDistance ? '.0' : ''} km away`
+                                : 'Unknown location'}
                     </div>
-                    <div style={{ color: 'var(--text-muted)', fontSize: '12px', marginTop: '2px' }}>
-                        Active {timeSince(profile.lastActiveAt)}
-                    </div>
+                    {profile.lastActiveAt && (
+                        <div style={{ color: 'var(--text-muted)', fontSize: '12px', marginTop: '2px' }}>
+                            Active {timeSince(profile.lastActiveAt)}
+                        </div>
+                    )}
 
                     {profile.revealed && (
                         <div style={{ display: 'inline-block', marginTop: '16px', padding: '4px 12px', background: 'var(--green-soft)', color: 'var(--green)', borderRadius: '20px', fontSize: '12px', fontWeight: 600, border: '1px solid rgba(74,222,128,0.3)' }}>

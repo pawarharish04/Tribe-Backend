@@ -32,7 +32,7 @@ export async function GET(req: Request) {
             include: {
                 user1: {
                     select: {
-                        id: true, name: true, latitude: true, longitude: true, lastActiveAt: true,
+                        id: true, name: true, latitude: true, longitude: true, lastActiveAt: true, distanceVisibility: true, activityVisibility: true,
                         interests: { select: { interestId: true, interest: { select: { name: true } } } },
                         interestPosts: {
                             take: 1, orderBy: { createdAt: 'desc' },
@@ -45,7 +45,7 @@ export async function GET(req: Request) {
                 },
                 user2: {
                     select: {
-                        id: true, name: true, latitude: true, longitude: true, lastActiveAt: true,
+                        id: true, name: true, latitude: true, longitude: true, lastActiveAt: true, distanceVisibility: true, activityVisibility: true,
                         interests: { select: { interestId: true, interest: { select: { name: true } } } },
                         interestPosts: {
                             take: 1, orderBy: { createdAt: 'desc' },
@@ -83,8 +83,9 @@ export async function GET(req: Request) {
                 matchedAt: record.createdAt,
                 id: partner.id,
                 name: partner.name,
-                distanceKm: distanceKm,
-                lastActiveAt: partner.lastActiveAt,
+                distanceKm: partner.distanceVisibility === false ? null : distanceKm,
+                distanceHidden: partner.distanceVisibility === false,
+                lastActiveAt: partner.activityVisibility === false ? null : partner.lastActiveAt,
                 sharedInterests: sharedInterests,
                 latestPost: partner.interestPosts[0] || null
             };

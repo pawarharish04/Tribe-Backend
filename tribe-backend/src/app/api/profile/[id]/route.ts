@@ -142,9 +142,9 @@ export async function GET(req: Request, context: any) {
             id: candidate.id,
             displayName: displayName,
             revealed: isRevealed,
-            distanceKm: restrictedDistance,
+            ...(candidate.distanceVisibility === false ? { distanceKm: null, distanceHidden: true } : { distanceKm: restrictedDistance }),
             exactDistance: isRevealed,
-            lastActiveAt: candidate.lastActiveAt,
+            ...(candidate.activityVisibility === false ? { lastActiveAt: null } : { lastActiveAt: candidate.lastActiveAt }),
             score: finalScore,
             compatibility: {
                 baseInterestScore: interestScore,

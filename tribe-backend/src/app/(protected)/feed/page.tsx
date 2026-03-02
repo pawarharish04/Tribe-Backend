@@ -22,15 +22,16 @@ interface FeedCandidate {
     id: string;
     displayName: string;
     revealed: boolean;
-    distanceKm: number;
+    distanceKm: number | null;
+    distanceHidden?: boolean;
     lastActiveAt?: string | null;
     score: number;
     interests: Interest[];
     posts: Post[];
     _exactMatches: number;
     _parentChildMatches: number;
-    _momentumBoost: number;
-    _activityFactor: number;
+    _momentumBoost?: number;
+    _activityFactor?: number;
     _interestScore: number;
     _distanceFactor: number;
     _finalScore: number;
@@ -265,7 +266,7 @@ function FeedCard({
                                 {isRevealed ? '🔓 Matched' : '🔒 Locked'}
                             </span>
 
-                            {user._momentumBoost > 0 && (
+                            {(user._momentumBoost ?? 0) > 0 && (
                                 <span style={{
                                     fontSize: '11px',
                                     padding: '2px 8px',
@@ -302,9 +303,11 @@ function FeedCard({
                             color: 'var(--text-secondary)',
                             marginTop: '3px',
                         }}>
-                            {isRevealed
-                                ? `${user.distanceKm.toFixed(1)} km away`
-                                : `~${user.distanceKm} km away`}
+                            {user.distanceHidden
+                                ? 'Distance hidden'
+                                : isRevealed
+                                    ? `${user.distanceKm?.toFixed(1) ?? '??'} km away`
+                                    : `~${user.distanceKm ?? '??'} km away`}
                         </div>
                     </div>
 
@@ -698,7 +701,7 @@ export default function FeedPage() {
                         <div>
                             <span style={{ color: 'var(--text-muted)' }}>Active Now</span>
                             <span style={{ color: 'var(--gold)', fontWeight: 600, marginLeft: '6px' }}>
-                                {feed.filter(u => u._momentumBoost > 0).length}
+                                {feed.filter(u => (u._momentumBoost ?? 0) > 0).length}
                             </span>
                         </div>
                     </div>
