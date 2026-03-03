@@ -29,6 +29,18 @@ function timeSince(dateStr: string): string {
 
 function ProfileView({ profile, stats }: { profile: ProfileData; stats: Stats }) {
     const initial = profile.name ? profile.name.charAt(0).toUpperCase() : '?';
+    const [activePost, setActivePost] = useState<PostItem | null>(null);
+    const [hoveredPostId, setHoveredPostId] = useState<string | null>(null);
+
+    // Prevent background scroll when modal is open
+    useEffect(() => {
+        if (activePost) {
+            document.body.style.overflow = 'hidden';
+        } else {
+            document.body.style.overflow = '';
+        }
+        return () => { document.body.style.overflow = ''; };
+    }, [activePost]);
 
     // Group posts by interest
     const postsByInterest: Record<string, { name: string; posts: PostItem[] }> = {};
@@ -239,59 +251,90 @@ function ProfileView({ profile, stats }: { profile: ProfileData; stats: Stats })
                                     </span>
                                 </div>
 
+                                {/* Square grid */}
                                 <div style={{
                                     display: 'grid',
                                     gridTemplateColumns: 'repeat(3, 1fr)',
-                                    gap: '10px',
+                                    gap: '8px',
                                 }}>
-                                    {group.posts.map(post => (
-                                        <div key={post.id} style={{
-                                            background: 'var(--bg)',
-                                            border: '1px solid var(--border)',
-                                            borderRadius: 'var(--radius-sm)',
-                                            overflow: 'hidden',
-                                        }}>
-                                            {post.media && (
-                                                <div style={{ aspectRatio: '4/3', background: 'var(--border-subtle)', overflow: 'hidden' }}>
-                                                    {post.media.type === 'video' ? (
+                                    {group.posts.map(post => {
+                                        const isHovered = hoveredPostId === post.id;
+                                        const hasMedia = !!post.media;
+                                        return (
+                                            <div
+                                                key={post.id}
+                                                onClick={() => setActivePost(post)}
+                                                onMouseEnter={() => setHoveredPostId(post.id)}
+                                                onMouseLeave={() => setHoveredPostId(null)}
+                                                style={{
+                                                    position: 'relative',
+                                                    aspectRatio: '1 / 1',
+                                                    borderRadius: 'var(--radius-sm)',
+                                                    overflow: 'hidden',
+                                                    cursor: 'pointer',
+                                                    background: 'var(--border-subtle)',
+                                                    border: '1px solid var(--border)',
+                                                }}
+                                            >
+                                                {hasMedia ? (
+                                                    post.media!.type === 'video' ? (
                                                         <video
-                                                            src={post.media.url}
-                                                            style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                                                            src={post.media!.url}
+                                                            style={{
+                                                                width: '100%', height: '100%',
+                                                                objectFit: 'cover',
+                                                                transform: isHovered ? 'scale(1.06)' : 'scale(1)',
+                                                                transition: 'transform 0.3s ease',
+                                                            }}
                                                             muted
                                                         />
                                                     ) : (
                                                         <img
-                                                            src={post.media.url}
+                                                            src={post.media!.url}
                                                             alt={post.caption ?? ''}
-                                                            style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                                                            style={{
+                                                                width: '100%', height: '100%',
+                                                                objectFit: 'cover',
+                                                                transform: isHovered ? 'scale(1.06)' : 'scale(1)',
+                                                                transition: 'transform 0.3s ease',
+                                                            }}
                                                         />
-                                                    )}
-                                                </div>
-                                            )}
-                                            <div style={{ padding: '10px' }}>
-                                                {post.caption && (
-                                                    <p style={{
+                                                    )
+                                                ) : (
+                                                    /* Text-only post tile */
+                                                    <div style={{
+                                                        width: '100%', height: '100%',
+                                                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                                        padding: '12px',
                                                         fontSize: '12px', color: 'var(--text-secondary)',
-                                                        marginBottom: '6px', lineHeight: 1.4,
-                                                        overflow: 'hidden',
-                                                        display: '-webkit-box',
-                                                        WebkitLineClamp: 2,
-                                                        WebkitBoxOrient: 'vertical',
+                                                        textAlign: 'center', lineHeight: 1.4,
+                                                        transform: isHovered ? 'scale(1.03)' : 'scale(1)',
+                                                        transition: 'transform 0.3s ease',
                                                     }}>
-                                                        {post.caption}
-                                                    </p>
+                                                        {post.caption ?? '✦'}
+                                                    </div>
                                                 )}
-                                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                                                    <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
+
+                                                {/* Hover overlay — likes + zoom hint */}
+                                                <div style={{
+                                                    position: 'absolute', inset: 0,
+                                                    background: 'rgba(0,0,0,0.45)',
+                                                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                                    opacity: isHovered ? 1 : 0,
+                                                    transition: 'opacity 0.2s ease',
+                                                    gap: '6px',
+                                                    flexDirection: 'column',
+                                                }}>
+                                                    <span style={{ fontSize: '18px', color: '#fff', fontWeight: 600 }}>
                                                         ♥ {post._count.likes}
                                                     </span>
-                                                    <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
-                                                        {timeSince(post.createdAt)}
+                                                    <span style={{ fontSize: '11px', color: 'rgba(255,255,255,0.7)' }}>
+                                                        View
                                                     </span>
                                                 </div>
                                             </div>
-                                        </div>
-                                    ))}
+                                        );
+                                    })}
                                 </div>
                             </div>
                         ))}
@@ -325,6 +368,120 @@ function ProfileView({ profile, stats }: { profile: ProfileData; stats: Stats })
                     </Link>
                 </div>
             )}
+
+            {/* ── Fullscreen Modal ── */}
+            {activePost && (
+                <div
+                    onClick={() => setActivePost(null)}
+                    style={{
+                        position: 'fixed', inset: 0,
+                        background: 'rgba(0,0,0,0.85)',
+                        zIndex: 1000,
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        padding: '24px',
+                        animation: 'fadeIn 0.18s ease',
+                    }}
+                >
+                    {/* Modal content — stop propagation so inner clicks don't close */}
+                    <div
+                        onClick={e => e.stopPropagation()}
+                        style={{
+                            background: 'var(--bg-card)',
+                            border: '1px solid var(--border)',
+                            borderRadius: 'var(--radius)',
+                            maxWidth: '680px',
+                            width: '100%',
+                            maxHeight: '90vh',
+                            overflow: 'auto',
+                            position: 'relative',
+                        }}
+                    >
+                        {/* Close button */}
+                        <button
+                            onClick={() => setActivePost(null)}
+                            style={{
+                                position: 'absolute', top: '14px', right: '14px',
+                                zIndex: 10,
+                                width: '32px', height: '32px',
+                                borderRadius: '50%',
+                                background: 'rgba(0,0,0,0.5)',
+                                border: 'none',
+                                color: '#fff',
+                                fontSize: '16px',
+                                cursor: 'pointer',
+                                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                lineHeight: 1,
+                            }}
+                        >
+                            ✕
+                        </button>
+
+                        {/* Media */}
+                        {activePost.media && (
+                            activePost.media.type === 'video' ? (
+                                <video
+                                    src={activePost.media.url}
+                                    style={{ width: '100%', borderRadius: 'var(--radius) var(--radius) 0 0', display: 'block', maxHeight: '60vh', objectFit: 'contain', background: '#000' }}
+                                    controls
+                                    autoPlay
+                                    muted
+                                />
+                            ) : (
+                                <img
+                                    src={activePost.media.url}
+                                    alt={activePost.caption ?? ''}
+                                    style={{ width: '100%', borderRadius: 'var(--radius) var(--radius) 0 0', display: 'block', maxHeight: '60vh', objectFit: 'contain', background: '#000' }}
+                                />
+                            )
+                        )}
+
+                        {/* Meta */}
+                        <div style={{ padding: '20px 24px 24px' }}>
+                            {/* Interest tag */}
+                            <div style={{
+                                display: 'inline-flex', alignItems: 'center', gap: '6px',
+                                padding: '4px 12px',
+                                background: 'var(--accent-soft)',
+                                border: '1px solid var(--accent)',
+                                borderRadius: '20px',
+                                fontSize: '11px', fontWeight: 600,
+                                color: 'var(--accent)',
+                                letterSpacing: '0.04em',
+                                textTransform: 'uppercase',
+                                marginBottom: '14px',
+                            }}>
+                                {activePost.interest.name}
+                            </div>
+
+                            {/* Caption */}
+                            {activePost.caption && (
+                                <p style={{
+                                    fontSize: '15px', color: 'var(--text-primary)',
+                                    lineHeight: 1.6, marginBottom: '16px',
+                                }}>
+                                    {activePost.caption}
+                                </p>
+                            )}
+
+                            {/* Footer */}
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                <span style={{ fontSize: '13px', color: 'var(--text-muted)' }}>
+                                    ♥ {activePost._count.likes} {activePost._count.likes === 1 ? 'like' : 'likes'}
+                                </span>
+                                <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>
+                                    {timeSince(activePost.createdAt)}
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            <style>{`
+                @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+            `}</style>
         </div>
     );
 }
