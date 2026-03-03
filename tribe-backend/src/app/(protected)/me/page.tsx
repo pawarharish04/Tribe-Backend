@@ -251,11 +251,11 @@ function ProfileView({ profile, stats }: { profile: ProfileData; stats: Stats })
                                     </span>
                                 </div>
 
-                                {/* Square grid */}
+                                {/* Square grid — persistent stats below each tile */}
                                 <div style={{
                                     display: 'grid',
                                     gridTemplateColumns: 'repeat(3, 1fr)',
-                                    gap: '8px',
+                                    gap: '10px',
                                 }}>
                                     {group.posts.map(post => {
                                         const isHovered = hoveredPostId === post.id;
@@ -263,73 +263,87 @@ function ProfileView({ profile, stats }: { profile: ProfileData; stats: Stats })
                                         return (
                                             <div
                                                 key={post.id}
-                                                onClick={() => setActivePost(post)}
                                                 onMouseEnter={() => setHoveredPostId(post.id)}
                                                 onMouseLeave={() => setHoveredPostId(null)}
-                                                style={{
-                                                    position: 'relative',
-                                                    aspectRatio: '1 / 1',
-                                                    borderRadius: 'var(--radius-sm)',
-                                                    overflow: 'hidden',
-                                                    cursor: 'pointer',
-                                                    background: 'var(--border-subtle)',
-                                                    border: '1px solid var(--border)',
-                                                }}
+                                                style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}
                                             >
-                                                {hasMedia ? (
-                                                    post.media!.type === 'video' ? (
-                                                        <video
-                                                            src={post.media!.url}
-                                                            style={{
-                                                                width: '100%', height: '100%',
-                                                                objectFit: 'cover',
-                                                                transform: isHovered ? 'scale(1.06)' : 'scale(1)',
-                                                                transition: 'transform 0.3s ease',
-                                                            }}
-                                                            muted
-                                                        />
+                                                {/* Square image tile */}
+                                                <div
+                                                    onClick={() => setActivePost(post)}
+                                                    style={{
+                                                        position: 'relative',
+                                                        aspectRatio: '1 / 1',
+                                                        borderRadius: 'var(--radius-sm)',
+                                                        overflow: 'hidden',
+                                                        cursor: 'pointer',
+                                                        background: 'var(--border-subtle)',
+                                                        border: `1px solid ${isHovered ? 'var(--accent)' : 'var(--border)'}`,
+                                                        transition: 'border-color 0.2s ease',
+                                                    }}
+                                                >
+                                                    {hasMedia ? (
+                                                        post.media!.type === 'video' ? (
+                                                            <video
+                                                                src={post.media!.url}
+                                                                style={{
+                                                                    width: '100%', height: '100%',
+                                                                    objectFit: 'cover',
+                                                                    transform: isHovered ? 'scale(1.05)' : 'scale(1)',
+                                                                    transition: 'transform 0.3s ease',
+                                                                }}
+                                                                muted
+                                                            />
+                                                        ) : (
+                                                            <img
+                                                                src={post.media!.url}
+                                                                alt={post.caption ?? ''}
+                                                                style={{
+                                                                    width: '100%', height: '100%',
+                                                                    objectFit: 'cover',
+                                                                    transform: isHovered ? 'scale(1.05)' : 'scale(1)',
+                                                                    transition: 'transform 0.3s ease',
+                                                                }}
+                                                            />
+                                                        )
                                                     ) : (
-                                                        <img
-                                                            src={post.media!.url}
-                                                            alt={post.caption ?? ''}
-                                                            style={{
-                                                                width: '100%', height: '100%',
-                                                                objectFit: 'cover',
-                                                                transform: isHovered ? 'scale(1.06)' : 'scale(1)',
-                                                                transition: 'transform 0.3s ease',
-                                                            }}
-                                                        />
-                                                    )
-                                                ) : (
-                                                    /* Text-only post tile */
-                                                    <div style={{
-                                                        width: '100%', height: '100%',
-                                                        display: 'flex', alignItems: 'center', justifyContent: 'center',
-                                                        padding: '12px',
-                                                        fontSize: '12px', color: 'var(--text-secondary)',
-                                                        textAlign: 'center', lineHeight: 1.4,
-                                                        transform: isHovered ? 'scale(1.03)' : 'scale(1)',
-                                                        transition: 'transform 0.3s ease',
-                                                    }}>
-                                                        {post.caption ?? '✦'}
-                                                    </div>
-                                                )}
+                                                        /* Text-only post tile */
+                                                        <div style={{
+                                                            width: '100%', height: '100%',
+                                                            display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                                            padding: '12px',
+                                                            fontSize: '12px', color: 'var(--text-secondary)',
+                                                            textAlign: 'center', lineHeight: 1.4,
+                                                        }}>
+                                                            {post.caption ?? '✦'}
+                                                        </div>
+                                                    )}
+                                                </div>
 
-                                                {/* Hover overlay — likes + zoom hint */}
+                                                {/* Persistent stats — always visible below tile */}
                                                 <div style={{
-                                                    position: 'absolute', inset: 0,
-                                                    background: 'rgba(0,0,0,0.45)',
-                                                    display: 'flex', alignItems: 'center', justifyContent: 'center',
-                                                    opacity: isHovered ? 1 : 0,
-                                                    transition: 'opacity 0.2s ease',
-                                                    gap: '6px',
+                                                    display: 'flex',
                                                     flexDirection: 'column',
+                                                    gap: '2px',
+                                                    paddingLeft: '2px',
                                                 }}>
-                                                    <span style={{ fontSize: '18px', color: '#fff', fontWeight: 600 }}>
-                                                        ♥ {post._count.likes}
+                                                    <span style={{
+                                                        fontSize: '10px',
+                                                        fontWeight: 600,
+                                                        color: 'var(--accent)',
+                                                        letterSpacing: '0.04em',
+                                                        textTransform: 'uppercase',
+                                                        overflow: 'hidden',
+                                                        textOverflow: 'ellipsis',
+                                                        whiteSpace: 'nowrap',
+                                                    }}>
+                                                        {post.interest.name}
                                                     </span>
-                                                    <span style={{ fontSize: '11px', color: 'rgba(255,255,255,0.7)' }}>
-                                                        View
+                                                    <span style={{
+                                                        fontSize: '11px',
+                                                        color: isHovered ? 'var(--text-secondary)' : 'var(--text-muted)',
+                                                        transition: 'color 0.2s ease',
+                                                    }}>
+                                                        ♥ {post._count.likes}
                                                     </span>
                                                 </div>
                                             </div>
