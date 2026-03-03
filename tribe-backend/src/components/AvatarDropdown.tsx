@@ -86,9 +86,6 @@ export default function AvatarDropdown() {
                     }}
                 >
                     {[
-                        { label: 'Feed', href: '/feed' },
-                        { label: 'Matches', href: '/matches' },
-                        { label: 'Activity', href: '/activity' },
                         { label: 'Profile', href: '/me' },
                         { label: 'Settings', href: '/settings' },
                     ].map(({ label, href }) => (

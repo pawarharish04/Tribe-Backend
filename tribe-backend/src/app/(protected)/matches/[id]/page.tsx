@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useParams, useRouter } from 'next/navigation';
+import { io, Socket } from 'socket.io-client';
 import MatchList, { type MatchListItem } from '../../../../components/matches/MatchList';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -54,6 +55,7 @@ function ChatPane({ matchId, jwt, myId, partnerName }: ChatPaneProps) {
     const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
     const seenIdsRef = useRef<Set<string>>(new Set());
     const [newIds, setNewIds] = useState<Set<string>>(new Set());
+    const socketRef = useRef<Socket | null>(null);
 
     const loadMessages = useCallback(async (silent = false) => {
         if (!jwt || !matchId) return;
@@ -89,15 +91,56 @@ function ChatPane({ matchId, jwt, myId, partnerName }: ChatPaneProps) {
         }
     }, [jwt, matchId]);
 
-    // Initial load + 6s poll
+    // Initial load
     useEffect(() => {
         if (!jwt || !matchId) return;
         loadMessages();
-        intervalRef.current = setInterval(() => loadMessages(true), 6000);
-        return () => {
-            if (intervalRef.current) clearInterval(intervalRef.current);
-        };
     }, [jwt, matchId, loadMessages]);
+
+    // Socket.io real-time connection (JWT authenticated)
+    useEffect(() => {
+        if (!matchId || !jwt) return;
+
+        const socketUrl = `http://${window.location.hostname}:4000`;
+        const socket = io(socketUrl, {
+            auth: { token: jwt },
+        });
+        socketRef.current = socket;
+
+        socket.on('connect', () => {
+            console.log('[socket] Connected:', socket.id, '→', socketUrl);
+            socket.emit('join_match', matchId);
+        });
+
+        socket.on('new_message', (message: Message & { clientTempId?: string }) => {
+            const { clientTempId, ...msg } = message;
+
+            if (clientTempId) {
+                // Replace our own optimistic bubble with the confirmed DB record
+                seenIdsRef.current.add(msg.id);
+                setMessages(prev => prev.map(m =>
+                    m.id === clientTempId ? msg : m
+                ));
+            } else {
+                // Partner's message — guard against dupes
+                if (seenIdsRef.current.has(msg.id)) return;
+                seenIdsRef.current.add(msg.id);
+                setMessages(prev => [...prev, msg]);
+                setNewIds(new Set([msg.id]));
+                setTimeout(() => setNewIds(new Set()), 300);
+            }
+        });
+
+        socket.on('disconnect', () => console.log('[socket] Disconnected'));
+
+        return () => {
+            socket.off('new_message');
+            socket.off('connect');
+            socket.off('disconnect');
+            socket.disconnect();
+            socketRef.current = null;
+        };
+    }, [matchId, jwt]);
 
     // Auto-scroll
     useEffect(() => {
@@ -106,44 +149,25 @@ function ChatPane({ matchId, jwt, myId, partnerName }: ChatPaneProps) {
 
     const sendMessage = async () => {
         const content = input.trim();
-        if (!content || sending || !jwt) return;
+        if (!content || sending || !socketRef.current) return;
 
         setSending(true);
+        // Optimistic id so we can replace it when server echoes back
+        const clientTempId = `opt-${Date.now()}`;
         const optimistic: Message = {
-            id: `opt-${Date.now()}`,
+            id: clientTempId,
             senderId: myId,
             content,
             createdAt: new Date().toISOString(),
         };
-        seenIdsRef.current.add(optimistic.id);
         setMessages(prev => [...prev, optimistic]);
         setInput('');
 
-        try {
-            const res = await fetch(`/api/matches/${matchId}/messages`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    Authorization: `Bearer ${jwt}`,
-                },
-                body: JSON.stringify({ content }),
-            });
-            if (!res.ok) {
-                setMessages(prev => prev.filter(m => m.id !== optimistic.id));
-                setInput(content);
-            } else {
-                const data = await res.json();
-                setMessages(prev => prev.map(m =>
-                    m.id === optimistic.id ? data.message : m
-                ));
-            }
-        } catch {
-            setMessages(prev => prev.filter(m => m.id !== optimistic.id));
-            setInput(content);
-        } finally {
-            setSending(false);
-            inputRef.current?.focus();
-        }
+        // Server handles DB write + broadcasts confirmed message back
+        socketRef.current.emit('send_message', { matchId, content, clientTempId });
+
+        setSending(false);
+        inputRef.current?.focus();
     };
 
     const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {

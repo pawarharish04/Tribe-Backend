@@ -3,6 +3,8 @@ import { prisma } from '../../../lib/prisma';
 import { getUserIdFromRequest } from '../../../lib/auth';
 import { calculateDistanceSq, calculateInterestScore, calculateFinalMatchScore, getDistanceFactor, calculateMomentumBoost } from '../../../lib/matching';
 
+const FEED_CACHE = new Map<string, { data: any; expiresAt: number }>();
+
 export async function GET(req: Request) {
     const startTime = performance.now();
     try {
@@ -19,6 +21,24 @@ export async function GET(req: Request) {
         let cursorScore: number | null = null;
         if (cursorScoreRaw && !isNaN(parseFloat(cursorScoreRaw))) {
             cursorScore = parseFloat(cursorScoreRaw);
+        }
+
+        const cacheKey = `${userId}:${cursorScore ?? 'null'}:${cursorId ?? 'null'}`;
+        const cached = FEED_CACHE.get(cacheKey);
+        if (cached && cached.expiresAt > Date.now()) {
+            const cacheHitMs = performance.now() - startTime;
+            if (process.env.NODE_ENV !== 'production') {
+                console.log(JSON.stringify({
+                    event: 'feed_cache_hit',
+                    totalMs: cacheHitMs,
+                    dbCandidatesMs: 0,
+                    dbImpressionsMs: 0,
+                    scoringMs: 0,
+                    candidateFetched: cached.data.count,
+                    candidateReturned: cached.data.count
+                }));
+            }
+            return NextResponse.json(cached.data);
         }
 
         const currentUser = await prisma.user.findUnique({
@@ -342,12 +362,19 @@ export async function GET(req: Request) {
             }));
         }
 
-        return NextResponse.json({
+        const responsePayload = {
             message: 'Geo feed fetched successfully',
             count: paginatedFeed.length,
             feed: paginatedFeed,
             nextCursor
-        }, { status: 200 });
+        };
+
+        FEED_CACHE.set(cacheKey, {
+            data: responsePayload,
+            expiresAt: Date.now() + 5000
+        });
+
+        return NextResponse.json(responsePayload, { status: 200 });
 
     } catch (error) {
         console.error('Geo Feed Error:', error);
