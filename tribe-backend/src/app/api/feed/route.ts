@@ -5,6 +5,88 @@ import { calculateDistanceSq, calculateInterestScore, calculateFinalMatchScore, 
 
 const FEED_CACHE = new Map<string, { data: any; expiresAt: number }>();
 
+// ─── Soft Diversity Injection ─────────────────────────────────────────────────────
+
+/**
+ * Finds the dominant interest category for a candidate by looking at which
+ * of their interests produces the strongest match with the viewer.
+ * Returns parentId of the best-matching interest, or the interestId
+ * itself if there is no parent.
+ */
+function getDominantCategory(
+    userInterests: { interestId: string; interest: { parentId: string | null } }[],
+    candidateInterests: { interestId: string; interest: { parentId: string | null } }[]
+): string | null {
+    const userInterestMap = new Map(userInterests.map(u => [u.interestId, u]));
+    const userParentIds = new Set(userInterests.map(u => u.interest.parentId).filter(Boolean));
+
+    let bestCategory: string | null = null;
+    let bestScore = -1;
+
+    for (const ci of candidateInterests) {
+        let score = 0;
+        if (userInterestMap.has(ci.interestId)) {
+            score = 30; // exact match
+        } else if (ci.interest.parentId && userParentIds.has(ci.interest.parentId)) {
+            score = 12; // same-category match
+        }
+
+        if (score > bestScore) {
+            bestScore = score;
+            bestCategory = ci.interest.parentId ?? ci.interestId;
+        }
+    }
+
+    // Fallback: use first interest's category
+    if (bestCategory === null && candidateInterests.length > 0) {
+        bestCategory = candidateInterests[0].interest.parentId ?? candidateInterests[0].interestId;
+    }
+
+    return bestCategory;
+}
+
+/**
+ * Soft category spread: no more than 2 consecutive candidates
+ * from the same dominant category. Preserves ranking — only
+ * swaps within runs when a cluster threshold is hit.
+ */
+function applyDiversity(sorted: any[]): any[] {
+    const result: any[] = [];
+    const remaining = [...sorted];
+    const categoryCount = new Map<string, number>();
+
+    while (remaining.length > 0) {
+        const candidate = remaining[0];
+        const dominant = candidate.dominantCategory ?? '__none__';
+        const count = categoryCount.get(dominant) ?? 0;
+
+        if (count >= 2) {
+            // Find next candidate with a different dominant category
+            const swapIndex = remaining.findIndex(
+                (c, i) => i > 0 && (c.dominantCategory ?? '__none__') !== dominant
+            );
+            if (swapIndex !== -1) {
+                const swapped = remaining[swapIndex];
+                const swappedCat = swapped.dominantCategory ?? '__none__';
+                result.push(swapped);
+                categoryCount.set(swappedCat, (categoryCount.get(swappedCat) ?? 0) + 1);
+                remaining.splice(swapIndex, 1);
+                // Reset the cluster count now that we've broken the run
+                categoryCount.set(dominant, 0);
+                continue;
+            }
+            // No different candidate available — allow the cluster (can't diversify)
+        }
+
+        result.push(candidate);
+        categoryCount.set(dominant, count + 1);
+        remaining.shift();
+    }
+
+    return result;
+}
+
+
 export async function GET(req: Request) {
     const startTime = performance.now();
     try {
@@ -282,6 +364,7 @@ export async function GET(req: Request) {
                 interests: u.interests,
                 posts: u.interestPosts,
                 score: finalScore,
+                dominantCategory: getDominantCategory(currentUser.interests as any, u.interests as any),
 
                 // Debug specific info
                 _name: u.name,
@@ -308,10 +391,13 @@ export async function GET(req: Request) {
         });
         const scoringMs = performance.now() - scoringStart;
 
-        // 5. Apply Cursor Filter if provided
-        let filteredFeed = sortedFeed;
+        // 5a. Soft diversity injection — gentle category spread, preserves ranking
+        const diversifiedFeed = applyDiversity(sortedFeed);
+
+        // 5b. Apply Cursor Filter if provided
+        let filteredFeed = diversifiedFeed;
         if (cursorScore !== null && cursorId) {
-            filteredFeed = sortedFeed.filter(c => {
+            filteredFeed = diversifiedFeed.filter(c => {
                 if (c._finalScore < cursorScore!) return true;
                 if (c._finalScore === cursorScore! && c.id > cursorId!) return true;
                 return false;
