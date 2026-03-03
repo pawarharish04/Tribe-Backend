@@ -28,7 +28,9 @@
   --transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
-*, *::before, *::after {
+*,
+*::before,
+*::after {
   box-sizing: border-box;
   margin: 0;
   padding: 0;
@@ -63,7 +65,8 @@ button {
   outline: none;
 }
 
-input, textarea {
+input,
+textarea {
   font-family: inherit;
 }
 
@@ -71,13 +74,30 @@ input, textarea {
   width: 6px;
   height: 6px;
 }
+
 ::-webkit-scrollbar-track {
   background: transparent;
 }
+
 ::-webkit-scrollbar-thumb {
   background: #333;
   border-radius: 3px;
 }
+
 ::-webkit-scrollbar-thumb:hover {
   background: #555;
+}
+
+@keyframes blink {
+  0% {
+    opacity: .2;
+  }
+
+  20% {
+    opacity: 1;
+  }
+
+  100% {
+    opacity: .2;
+  }
 }

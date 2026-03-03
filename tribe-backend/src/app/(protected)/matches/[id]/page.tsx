@@ -56,6 +56,8 @@ function ChatPane({ matchId, jwt, myId, partnerName }: ChatPaneProps) {
     const seenIdsRef = useRef<Set<string>>(new Set());
     const [newIds, setNewIds] = useState<Set<string>>(new Set());
     const socketRef = useRef<Socket | null>(null);
+    const [isPartnerTyping, setIsPartnerTyping] = useState(false);
+    const typingTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
     const loadMessages = useCallback(async (silent = false) => {
         if (!jwt || !matchId) return;
@@ -131,21 +133,47 @@ function ChatPane({ matchId, jwt, myId, partnerName }: ChatPaneProps) {
             }
         });
 
+        socket.on('typing_start', ({ userId }) => {
+            if (userId !== myId) {
+                setIsPartnerTyping(true);
+            }
+        });
+
+        socket.on('typing_stop', ({ userId }) => {
+            if (userId !== myId) {
+                setIsPartnerTyping(false);
+            }
+        });
+
         socket.on('disconnect', () => console.log('[socket] Disconnected'));
 
         return () => {
             socket.off('new_message');
+            socket.off('typing_start');
+            socket.off('typing_stop');
             socket.off('connect');
             socket.off('disconnect');
             socket.disconnect();
             socketRef.current = null;
         };
-    }, [matchId, jwt]);
+    }, [matchId, jwt, myId]);
 
     // Auto-scroll
     useEffect(() => {
         bottomRef.current?.scrollIntoView({ behavior: messages.length <= 1 ? 'instant' : 'smooth' } as any);
-    }, [messages]);
+    }, [messages, isPartnerTyping]);
+
+    const handleTyping = () => {
+        socketRef.current?.emit('typing_start', matchId);
+
+        if (typingTimeoutRef.current) {
+            clearTimeout(typingTimeoutRef.current);
+        }
+
+        typingTimeoutRef.current = setTimeout(() => {
+            socketRef.current?.emit('typing_stop', matchId);
+        }, 1500);
+    };
 
     const sendMessage = async () => {
         const content = input.trim();
@@ -333,6 +361,18 @@ function ChatPane({ matchId, jwt, myId, partnerName }: ChatPaneProps) {
                     </div>
                 ))}
 
+                {isPartnerTyping && (
+                    <div style={{
+                        fontSize: '12px',
+                        color: 'var(--text-muted)',
+                        fontStyle: 'italic',
+                        padding: '4px 8px',
+                        animation: 'blink 1.5s infinite',
+                    }}>
+                        Typing...
+                    </div>
+                )}
+
                 <div ref={bottomRef} />
             </div>
 
@@ -349,7 +389,10 @@ function ChatPane({ matchId, jwt, myId, partnerName }: ChatPaneProps) {
                 <textarea
                     ref={inputRef}
                     value={input}
-                    onChange={e => setInput(e.target.value)}
+                    onChange={e => {
+                        setInput(e.target.value);
+                        handleTyping();
+                    }}
                     onKeyDown={handleKeyDown}
                     placeholder="Type a message…"
                     rows={1}

@@ -101,6 +101,15 @@ io.on('connection', (socket) => {
     socket.on('disconnect', () => {
         console.log(`[socket] Disconnected: ${socket.id}`);
     });
+
+    // ─── STEP 4: Typing Indicators ───────────────────────────────────────────
+    socket.on('typing_start', (matchId: string) => {
+        socket.to(`match:${matchId}`).emit('typing_start', { userId });
+    });
+
+    socket.on('typing_stop', (matchId: string) => {
+        socket.to(`match:${matchId}`).emit('typing_stop', { userId });
+    });
 });
 
 // ─── Start ────────────────────────────────────────────────────────────────────
