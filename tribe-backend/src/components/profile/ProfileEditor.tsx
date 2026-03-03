@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -189,6 +189,38 @@ export default function ProfileEditor({ profile, stats, jwt }: ProfileEditorProp
     const [newPostMediaType, setNewPostMediaType] = useState<'image' | 'video'>('image');
     const [postSubmitting, setPostSubmitting] = useState(false);
     const [postError, setPostError] = useState('');
+    const [uploadingMedia, setUploadingMedia] = useState(false);
+    const [mediaPreview, setMediaPreview] = useState('');
+    const fileInputRef = useRef<HTMLInputElement>(null);
+
+    const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+
+        setUploadingMedia(true);
+        setPostError('');
+        try {
+            const fd = new FormData();
+            fd.append('file', file);
+            const res = await fetch('/api/upload', {
+                method: 'POST',
+                headers: { Authorization: `Bearer ${jwt}` },
+                body: fd,
+            });
+            const data = await res.json();
+            if (res.ok) {
+                setNewPostMediaUrl(data.url);
+                setNewPostMediaType(file.type.startsWith('video/') ? 'video' : 'image');
+                setMediaPreview(data.url);
+            } else {
+                setPostError(data.error ?? 'Upload failed');
+            }
+        } catch {
+            setPostError('Upload network error');
+        } finally {
+            setUploadingMedia(false);
+        }
+    };
 
     const submitPost = async () => {
         if (!newPostInterestId) { setPostError('Select an interest.'); return; }
@@ -211,6 +243,9 @@ export default function ProfileEditor({ profile, stats, jwt }: ProfileEditorProp
                 setNewPostInterestId('');
                 setNewPostCaption('');
                 setNewPostMediaUrl('');
+                setMediaPreview('');
+                // Reset file input so same file can be re-selected
+                if (fileInputRef.current) fileInputRef.current.value = '';
             } else {
                 setPostError(data.error ?? 'Failed to create post');
             }
@@ -430,21 +465,61 @@ export default function ProfileEditor({ profile, stats, jwt }: ProfileEditorProp
                         style={{ ...inputStyle, resize: 'vertical' }}
                     />
 
-                    <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-                        <input
-                            value={newPostMediaUrl}
-                            onChange={e => setNewPostMediaUrl(e.target.value)}
-                            placeholder="Media URL (image/video, optional)"
-                            style={{ ...inputStyle, flex: 1, minWidth: '200px' }}
-                        />
-                        <select
-                            value={newPostMediaType}
-                            onChange={e => setNewPostMediaType(e.target.value as 'image' | 'video')}
-                            style={{ ...selectStyle, width: '100px', flexShrink: 0 }}
-                        >
-                            <option value="image">Image</option>
-                            <option value="video">Video</option>
-                        </select>
+                    {/* File upload — replaces manual URL input */}
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                        <label style={{
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '8px',
+                            padding: '9px 14px',
+                            background: uploadingMedia ? 'rgba(255,255,255,0.03)' : 'rgba(124,106,247,0.10)',
+                            border: '1px solid var(--accent)',
+                            borderRadius: 'var(--radius-sm)',
+                            color: 'var(--accent)',
+                            fontSize: '13px',
+                            fontWeight: 500,
+                            cursor: uploadingMedia ? 'not-allowed' : 'pointer',
+                            opacity: uploadingMedia ? 0.6 : 1,
+                            transition: 'opacity 0.15s ease',
+                            alignSelf: 'flex-start',
+                        }}>
+                            {uploadingMedia ? '⏳ Uploading…' : newPostMediaUrl ? '🔄 Change file' : '📎 Attach photo / video'}
+                            <input
+                                ref={fileInputRef}
+                                type="file"
+                                accept="image/jpeg,image/png,image/gif,image/webp,video/mp4,video/webm"
+                                style={{ display: 'none' }}
+                                onChange={handleFileUpload}
+                                disabled={uploadingMedia}
+                            />
+                        </label>
+
+                        {/* Preview */}
+                        {mediaPreview && (
+                            <div style={{ position: 'relative', display: 'inline-block' }}>
+                                {newPostMediaType === 'video' ? (
+                                    <video
+                                        src={mediaPreview}
+                                        style={{ maxWidth: '200px', maxHeight: '140px', borderRadius: 'var(--radius-sm)', objectFit: 'cover', border: '1px solid var(--border)' }}
+                                        muted
+                                        controls
+                                    />
+                                ) : (
+                                    <img
+                                        src={mediaPreview}
+                                        alt="Preview"
+                                        style={{ maxWidth: '200px', maxHeight: '140px', borderRadius: 'var(--radius-sm)', objectFit: 'cover', border: '1px solid var(--border)' }}
+                                    />
+                                )}
+                                <button
+                                    onClick={() => { setNewPostMediaUrl(''); setMediaPreview(''); if (fileInputRef.current) fileInputRef.current.value = ''; }}
+                                    style={{ ...ghostBtn, position: 'absolute', top: '4px', right: '4px', padding: '2px 6px', fontSize: '10px' }}
+                                    title="Remove"
+                                >
+                                    ✕
+                                </button>
+                            </div>
+                        )}
                     </div>
 
                     {postError && (
