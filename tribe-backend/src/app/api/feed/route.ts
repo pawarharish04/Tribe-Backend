@@ -84,6 +84,16 @@ export async function GET(req: Request) {
                 };
             }
 
+            const selectClause = {
+                id: true,
+                name: true,
+                latitude: true,
+                longitude: true,
+                lastActiveAt: true,
+                distanceVisibility: true,
+                activityVisibility: true
+            };
+
             if (hasLocation) {
                 // 3A. User HAS location -> Perform Geo-Bounded search
                 const latSpan = 0.5; // ~55km bounding radius
@@ -100,70 +110,75 @@ export async function GET(req: Request) {
                         latitude: { gte: minLat, lte: maxLat },
                         longitude: { gte: minLon, lte: maxLon },
                     },
-                    select: {
-                        id: true,
-                        name: true,
-                        latitude: true,
-                        longitude: true,
-                        lastActiveAt: true,
-                        distanceVisibility: true,
-                        activityVisibility: true,
-                        interests: {
-                            select: {
-                                interestId: true,
-                                level: true,
-                                interest: { select: { name: true, parentId: true, usageCount: true } }
-                            }
-                        },
-                        interestPosts: {
-                            take: 3,
-                            orderBy: { createdAt: 'desc' },
-                            include: {
-                                interest: { select: { id: true, name: true } },
-                                media: { select: { id: true, url: true, type: true } }
-                            }
-                        }
-                    },
-                    take: 100 // larger pool to calculate scores against
+                    select: selectClause,
+                    take: 60 // bounded candidate fetch to prevent deep table scans
                 });
             } else {
                 // 3B. User has NO location -> Perform Global Search ignoring distance (Fallback Feed for resilience)
                 return await prisma.user.findMany({
                     where: baseWhere,
-                    select: {
-                        id: true,
-                        name: true,
-                        latitude: true,
-                        longitude: true,
-                        lastActiveAt: true,
-                        distanceVisibility: true,
-                        activityVisibility: true,
-                        interests: {
-                            select: {
-                                interestId: true,
-                                level: true,
-                                interest: { select: { name: true, parentId: true, usageCount: true } }
-                            }
-                        },
-                        interestPosts: {
-                            take: 3,
-                            orderBy: { createdAt: 'desc' },
-                            include: {
-                                interest: { select: { id: true, name: true } },
-                                media: { select: { id: true, url: true, type: true } }
-                            }
-                        }
-                    },
-                    take: 100
+                    select: selectClause,
+                    take: 60
                 });
             }
         };
 
-        let feedUsers = await fetchCandidates(false);
-        if (feedUsers.length === 0) {
+        const candidateStart = performance.now();
+        let baseFeedUsers = await fetchCandidates(false);
+        if (baseFeedUsers.length === 0) {
             // fallback: ignore impressions filter
-            feedUsers = await fetchCandidates(true);
+            baseFeedUsers = await fetchCandidates(true);
         }
+
+        const candidateIds = baseFeedUsers.map(u => u.id);
+
+        const [interestsRaw, postsRaw] = await Promise.all([
+            prisma.userInterest.findMany({
+                where: { userId: { in: candidateIds } },
+                select: {
+                    userId: true,
+                    interestId: true,
+                    level: true,
+                    interest: { select: { id: true, name: true, parentId: true, usageCount: true } }
+                }
+            }),
+            prisma.interestPost.findMany({
+                where: { userId: { in: candidateIds } },
+                orderBy: { createdAt: 'desc' },
+                take: 120, // Theoretical boundary to prevent massive scans
+                select: {
+                    id: true,
+                    userId: true, // required for grouping
+                    caption: true,
+                    interestId: true,
+                    createdAt: true,
+                    interest: { select: { id: true, name: true } },
+                    media: { select: { id: true, url: true, type: true } }
+                }
+            })
+        ]);
+
+        const interestsByUserId = new Map<string, any[]>();
+        interestsRaw.forEach(ui => {
+            if (!interestsByUserId.has(ui.userId)) interestsByUserId.set(ui.userId, []);
+            interestsByUserId.get(ui.userId)!.push(ui);
+        });
+
+        const postsByUserId = new Map<string, any[]>();
+        postsRaw.forEach(post => {
+            if (!postsByUserId.has(post.userId)) postsByUserId.set(post.userId, []);
+            if (postsByUserId.get(post.userId)!.length < 2) {
+                postsByUserId.get(post.userId)!.push(post);
+            }
+        });
+
+        const feedUsers = baseFeedUsers.map(u => ({
+            ...u,
+            interests: interestsByUserId.get(u.id) || [],
+            interestPosts: postsByUserId.get(u.id) || []
+        }));
+
+        const dbCandidatesMs = performance.now() - candidateStart;
 
         // 4. Determine Mutual Matches (Identity Reveal Ladder)
         const matchRecords = await prisma.matchUnlock.findMany({
@@ -181,6 +196,7 @@ export async function GET(req: Request) {
         );
 
         // 5. Calculate Scores and Sort
+        const scoringStart = performance.now();
         const sortedFeed = feedUsers.map((u: any) => {
             let distanceSq: number | null = null;
 
@@ -270,6 +286,7 @@ export async function GET(req: Request) {
             // Deterministic Tiebreaker
             return a.id.localeCompare(b.id);
         });
+        const scoringMs = performance.now() - scoringStart;
 
         // 5. Apply Cursor Filter if provided
         let filteredFeed = sortedFeed;
@@ -296,21 +313,14 @@ export async function GET(req: Request) {
                 id: last.id
             };
 
-            await Promise.all(paginatedFeed.map(c =>
-                prisma.feedImpression.upsert({
-                    where: {
-                        viewerId_targetId: {
-                            viewerId: userId,
-                            targetId: c.id
-                        }
-                    },
-                    update: { shownAt: new Date() },
-                    create: {
-                        viewerId: userId,
-                        targetId: c.id
-                    }
-                })
-            ));
+            await prisma.feedImpression.createMany({
+                data: paginatedFeed.map(c => ({
+                    viewerId: userId,
+                    targetId: c.id,
+                    shownAt: new Date()
+                })),
+                skipDuplicates: true
+            });
         }
 
         // Update current user's lastActiveAt in a background task
@@ -319,12 +329,16 @@ export async function GET(req: Request) {
             data: { lastActiveAt: new Date() }
         }).catch(err => console.error("Failed to update lastActiveAt", err));
 
-        const endTime = performance.now();
+        const totalMs = performance.now() - startTime;
         if (process.env.NODE_ENV !== 'production') {
             console.log(JSON.stringify({
                 event: 'feed_generated',
-                durationMs: Math.round(endTime - startTime),
-                candidateCount: feedUsers.length
+                totalMs,
+                dbCandidatesMs,
+                dbImpressionsMs: 0,
+                scoringMs,
+                candidateFetched: feedUsers.length,
+                candidateReturned: paginatedFeed.length
             }));
         }
 
