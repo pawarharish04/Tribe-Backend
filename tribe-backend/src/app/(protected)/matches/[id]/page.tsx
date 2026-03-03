@@ -41,9 +41,10 @@ interface ChatPaneProps {
     jwt: string;
     myId: string;
     partnerName: string;
+    partnerId: string;
 }
 
-function ChatPane({ matchId, jwt, myId, partnerName }: ChatPaneProps) {
+function ChatPane({ matchId, jwt, myId, partnerName, partnerId }: ChatPaneProps) {
     const [messages, setMessages] = useState<Message[]>([]);
     const [input, setInput] = useState('');
     const [sending, setSending] = useState(false);
@@ -58,6 +59,7 @@ function ChatPane({ matchId, jwt, myId, partnerName }: ChatPaneProps) {
     const socketRef = useRef<Socket | null>(null);
     const [isPartnerTyping, setIsPartnerTyping] = useState(false);
     const typingTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+    const [isPartnerOnline, setIsPartnerOnline] = useState(false);
 
     const loadMessages = useCallback(async (silent = false) => {
         if (!jwt || !matchId) return;
@@ -145,18 +147,33 @@ function ChatPane({ matchId, jwt, myId, partnerName }: ChatPaneProps) {
             }
         });
 
+        socket.on('presence_status', ({ userId, online }: { userId: string; online: boolean }) => {
+            if (userId === partnerId) setIsPartnerOnline(online);
+        });
+
+        socket.on('user_online', ({ userId }: { userId: string }) => {
+            if (userId === partnerId) setIsPartnerOnline(true);
+        });
+
+        socket.on('user_offline', ({ userId }: { userId: string }) => {
+            if (userId === partnerId) setIsPartnerOnline(false);
+        });
+
         socket.on('disconnect', () => console.log('[socket] Disconnected'));
 
         return () => {
             socket.off('new_message');
             socket.off('typing_start');
             socket.off('typing_stop');
+            socket.off('presence_status');
+            socket.off('user_online');
+            socket.off('user_offline');
             socket.off('connect');
             socket.off('disconnect');
             socket.disconnect();
             socketRef.current = null;
         };
-    }, [matchId, jwt, myId]);
+    }, [matchId, jwt, myId, partnerId]);
 
     // Auto-scroll
     useEffect(() => {
@@ -241,8 +258,24 @@ function ChatPane({ matchId, jwt, myId, partnerName }: ChatPaneProps) {
                     }}>
                         {partnerName}
                     </div>
-                    <div style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
-                        Mutual match · Tribe
+                    <div style={{
+                        fontSize: '11px',
+                        color: isPartnerOnline ? 'var(--green)' : 'var(--text-muted)',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '4px',
+                        transition: 'color 0.3s ease',
+                    }}>
+                        <span style={{
+                            width: '6px',
+                            height: '6px',
+                            borderRadius: '50%',
+                            background: isPartnerOnline ? 'var(--green)' : 'var(--text-muted)',
+                            display: 'inline-block',
+                            flexShrink: 0,
+                            transition: 'background 0.3s ease',
+                        }} />
+                        {isPartnerOnline ? 'Online' : 'Offline'}
                     </div>
                 </div>
             </div>
@@ -461,6 +494,7 @@ export default function ChatPage() {
     const [myId, setMyId] = useState('');
     const [matches, setMatches] = useState<MatchListItem[]>([]);
     const [partnerName, setPartnerName] = useState('Match');
+    const [partnerId, setPartnerId] = useState('');
 
     // Auth
     useEffect(() => {
@@ -483,6 +517,7 @@ export default function ChatPage() {
                 setMatches(list);
                 const active = list.find(m => m.matchId === matchId);
                 if (active?.name) setPartnerName(active.name);
+                if (active?.id) setPartnerId(active.id);
             })
             .catch(() => { /* soft fail */ });
     }, [jwt, matchId]);
@@ -553,6 +588,7 @@ export default function ChatPage() {
                         jwt={jwt}
                         myId={myId}
                         partnerName={partnerName}
+                        partnerId={partnerId}
                     />
                 )}
             </main>

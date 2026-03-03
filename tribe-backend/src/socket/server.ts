@@ -22,6 +22,11 @@ const io = new Server(server, {
     cors: { origin: '*' },
 });
 
+// ─── Online Presence Map ─────────────────────────────────────────────────────
+// userId → socketId (single session per user, last-write-wins)
+const onlineUsers = new Map<string, string>();
+
+
 // ─── STEP 1: JWT Auth Middleware ─────────────────────────────────────────────
 io.use((socket, next) => {
     const token = socket.handshake.auth?.token as string | undefined;
@@ -41,6 +46,11 @@ io.on('connection', (socket) => {
     const userId: string = (socket as any).userId;
     console.log(`[socket] Connected: ${socket.id} (user: ${userId})`);
 
+    // Track presence
+    onlineUsers.set(userId, socket.id);
+    socket.broadcast.emit('user_online', { userId });
+
+
     // ─── STEP 2: Validate match membership before join ────────────────────────
     socket.on('join_match', async (matchId: string) => {
         const match = await prisma.matchUnlock.findFirst({
@@ -58,7 +68,15 @@ io.on('connection', (socket) => {
 
         socket.join(`match:${matchId}`);
         console.log(`[socket] ${userId} joined match:${matchId}`);
+
+        // Tell the joiner whether their partner is currently online
+        const partnerId = match.user1Id === userId ? match.user2Id : match.user1Id;
+        socket.emit('presence_status', {
+            userId: partnerId,
+            online: onlineUsers.has(partnerId),
+        });
     });
+
 
     // ─── STEP 3: Server-side DB write — never trust client senderId ───────────
     socket.on('send_message', async (payload: {
@@ -99,8 +117,11 @@ io.on('connection', (socket) => {
     });
 
     socket.on('disconnect', () => {
+        onlineUsers.delete(userId);
+        socket.broadcast.emit('user_offline', { userId });
         console.log(`[socket] Disconnected: ${socket.id}`);
     });
+
 
     // ─── STEP 4: Typing Indicators ───────────────────────────────────────────
     socket.on('typing_start', (matchId: string) => {
