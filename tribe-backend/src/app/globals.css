@@ -1,30 +1,61 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;1,300;1,400&family=Fraunces:ital,wght@0,700;0,900;1,300;1,400&display=swap');
 
 :root {
-  --bg: #0c0c0e;
-  --bg-card: #16161a;
-  --bg-card-hover: #1c1c22;
-  --bg-card-revealed: #131824;
-  --border: #242428;
-  --border-subtle: #1c1c20;
-  --text-primary: #f0f0f2;
-  --text-secondary: #8a8a96;
-  --text-muted: #52525e;
-  --accent: #7c6af7;
-  --accent-soft: rgba(124, 106, 247, 0.12);
-  --accent-glow: rgba(124, 106, 247, 0.25);
-  --green: #4ade80;
-  --green-soft: rgba(74, 222, 128, 0.10);
-  --red: #f87171;
-  --red-soft: rgba(248, 113, 113, 0.10);
-  --gold: #f59e0b;
-  --gold-soft: rgba(245, 158, 11, 0.10);
-  --revealed-glow: rgba(74, 222, 128, 0.08);
+  /* ── Backgrounds ── */
+  --bg: #F7F3ED;
+  --bg-card: #FFFFFF;
+  --bg-card-hover: #EFE9E0;
+  --bg-card-revealed: #EDF2ED;
+
+  /* ── Borders ── */
+  --border: #D6CFC6;
+  --border-subtle: #E8E0D4;
+
+  /* ── Typography ── */
+  --text-primary: #1C1917;
+  --text-secondary: #44403C;
+  --text-muted: #78716C;
+
+  /* ── Accent (sage green) ── */
+  --accent: #5C7A5F;
+  --accent-soft: rgba(92, 122, 95, 0.12);
+  --accent-glow: rgba(92, 122, 95, 0.22);
+
+  /* ── Semantic colours ── */
+  --green: #5C7A5F;
+  --green-soft: rgba(92, 122, 95, 0.10);
+  --red: #B85C38;
+  --red-soft: rgba(184, 92, 56, 0.10);
+  --gold: #A07840;
+  --gold-soft: rgba(160, 120, 64, 0.10);
+  --revealed-glow: rgba(92, 122, 95, 0.08);
+
+  /* ── Editorial pigments (for interest accents) ── */
+  --sage: #5C7A5F;
+  --clay: #B85C38;
+  --indigo: #3D4F7C;
+  --warm-gold: #A07840;
+
+  /* ── Parchment / cream ── */
+  --cream: #F7F3ED;
+  --cream2: #EFE9E0;
+  --parchment: #E8E0D4;
+  --sep: #D6CFC6;
+  --ink: #1C1917;
+  --ink-mid: #44403C;
+  --ink-light: #78716C;
+  --ink-faint: #A8A29E;
+
+  /* ── Shape ── */
   --radius: 16px;
   --radius-sm: 10px;
   --radius-xs: 6px;
-  --shadow: 0 4px 24px rgba(0, 0, 0, 0.4);
-  --shadow-card: 0 2px 12px rgba(0, 0, 0, 0.3);
+
+  /* ── Depth ── */
+  --shadow: 0 4px 24px rgba(28, 25, 23, 0.08);
+  --shadow-card: 0 2px 12px rgba(28, 25, 23, 0.06);
+
+  /* ── Motion ── */
   --transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
@@ -37,7 +68,6 @@
 }
 
 html {
-  color-scheme: dark;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   scroll-behavior: smooth;
@@ -46,9 +76,9 @@ html {
 body {
   background: var(--bg);
   color: var(--text-primary);
-  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
-  font-size: 14px;
-  line-height: 1.6;
+  font-family: 'Cormorant Garamond', Georgia, serif;
+  font-size: 15px;
+  line-height: 1.65;
   min-height: 100vh;
   overflow-x: hidden;
 }
@@ -70,9 +100,10 @@ textarea {
   font-family: inherit;
 }
 
+/* ── Scrollbar ── */
 ::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
+  width: 4px;
+  height: 4px;
 }
 
 ::-webkit-scrollbar-track {
@@ -80,24 +111,57 @@ textarea {
 }
 
 ::-webkit-scrollbar-thumb {
-  background: #333;
-  border-radius: 3px;
+  background: var(--parchment);
+  border-radius: 2px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: #555;
+  background: var(--sep);
 }
 
-@keyframes blink {
-  0% {
-    opacity: .2;
+/* ── Global keyframes ── */
+@keyframes pulse {
+
+  0%,
+  100% {
+    opacity: 0.5;
   }
 
-  20% {
+  50% {
+    opacity: 0.8;
+  }
+}
+
+@keyframes rIn {
+  from {
+    opacity: 0;
+    transform: translateY(14px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes fIn {
+  from {
+    opacity: 0;
+  }
+
+  to {
     opacity: 1;
   }
+}
 
-  100% {
-    opacity: .2;
+@keyframes sUp {
+  from {
+    transform: translateY(24px);
+    opacity: 0;
+  }
+
+  to {
+    transform: translateY(0);
+    opacity: 1;
   }
 }
