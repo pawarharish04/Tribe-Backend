@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { prisma } from '../../../../lib/prisma';
 import { getUserIdFromRequest } from '../../../../lib/auth';
 import { calculateDistanceSq, calculateInterestScore, calculateFinalMatchScore, getDistanceFactor, calculateMomentumBoost } from '../../../../lib/matching';
+import { calculateCompatibility } from '../../../../services/compatibilityEngine';
 
 export async function GET(req: Request, context: any) {
     try {
@@ -113,6 +114,9 @@ export async function GET(req: Request, context: any) {
         const displayName = isRevealed ? candidate.name : (candidate.name ? candidate.name.split(' ')[0] : 'Unknown');
         const restrictedDistance = isRevealed ? distanceKm : (distanceKm !== null ? Math.round(distanceKm / 5) * 5 : null);
 
+        // 4. Creative Compatibility Engine Overlay
+        const creativeCompatibilityResult = await calculateCompatibility(userId, candidateId);
+
         let returnedPosts = candidate.interestPosts;
         if (!isRevealed) {
             returnedPosts = returnedPosts.slice(0, 3) as any;
@@ -152,6 +156,10 @@ export async function GET(req: Request, context: any) {
                 parentMatches: breakdown.parentChildMatches,
                 categoryMatches: breakdown.sameCategoryMatches,
                 momentumBoost: momentumBoost
+            },
+            creativeCompatibility: {
+                score: Math.round(creativeCompatibilityResult.totalScore),
+                sharedInterests: creativeCompatibilityResult.sharedInterests
             },
             interests: annotatedInterests,
             posts: returnedPosts

@@ -39,6 +39,14 @@ interface FeedCandidate {
     _finalScore: number;
 }
 
+interface RecommendedCreator {
+    userId: string;
+    name: string;
+    avatarUrl: string | null;
+    compatibilityScore: number;
+    sharedInterests: string[];
+}
+
 // ─── Post Like Row ────────────────────────────────────────────────────────────
 
 function PostLikeRow({ post, jwt }: { post: Post; jwt: string }) {
@@ -287,6 +295,7 @@ export default function FeedPage() {
     const [loadingMore, setLoadingMore] = useState(false);
     const [error, setError] = useState('');
     const [matchName, setMatchName] = useState<string | null>(null);
+    const [recommendedCreators, setRecommendedCreators] = useState<RecommendedCreator[]>([]);
     const router = useRouter();
 
     useEffect(() => {
@@ -316,12 +325,20 @@ export default function FeedPage() {
             else setFeed(prev => [...prev, ...(data.feed || [])]);
             if (data.needsInterests) router.push('/onboarding');
             setNextCursor(data.nextCursor || null);
+
+            // Also explicitly fetch recommended creators independently if reset
+            if (reset) {
+                fetch('/api/recommend-creators', { headers: { Authorization: `Bearer ${jwt.trim()}` } })
+                    .then(r => r.ok ? r.json() : [])
+                    .then(creators => setRecommendedCreators(creators))
+                    .catch(() => { }); // silent failure for recommendations
+            }
         } catch (e: any) {
             setError(e.message);
         } finally {
             if (reset) setLoading(false); else setLoadingMore(false);
         }
-    }, [jwt, nextCursor]);
+    }, [jwt, nextCursor, router]);
 
     const removeCard = useCallback((id: string) => { setTimeout(() => setFeed(f => f.filter(u => u.id !== id)), 600); }, []);
 
@@ -341,6 +358,58 @@ export default function FeedPage() {
                         Ranked by compatibility — shared interests, recency, and proximity
                     </p>
                 </div>
+
+                {/* Creators Similar to You (Horizontal Recommendations) */}
+                {recommendedCreators.length > 0 && (
+                    <div style={{ marginBottom: '32px' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px' }}>
+                            <div style={{ fontSize: '12px', textTransform: 'uppercase', letterSpacing: '0.12em', color: T.inkFaint, fontWeight: 600, fontFamily: 'Georgia,serif' }}>
+                                Creators Similar to You
+                            </div>
+                        </div>
+                        <div style={{
+                            display: 'flex', gap: '16px', overflowX: 'auto', paddingBottom: '16px',
+                            scrollbarWidth: 'none', WebkitOverflowScrolling: 'touch', margin: '0 -20px', padding: '0 20px 16px'
+                        }}>
+                            {/* Hide scrollbar trick */}
+                            <style>{`div::-webkit-scrollbar { display: none; }`}</style>
+
+                            {recommendedCreators.map(creator => (
+                                <div key={creator.userId}
+                                    onClick={() => router.push(`/profile/${creator.userId}`)}
+                                    style={{
+                                        flexShrink: 0, width: '160px', borderRadius: '16px', background: T.parchment,
+                                        border: `1px solid ${T.sep}`, padding: '16px', cursor: 'pointer',
+                                        transition: 'transform 0.2s, box-shadow 0.2s', position: 'relative', overflow: 'hidden'
+                                    }}
+                                    onMouseEnter={e => { e.currentTarget.style.transform = 'translateY(-4px)'; e.currentTarget.style.boxShadow = '0 12px 24px rgba(28,25,23,0.08)'; }}
+                                    onMouseLeave={e => { e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.boxShadow = 'none'; }}
+                                >
+                                    <div style={{ width: '48px', height: '48px', borderRadius: '50%', background: T.cream, display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 0 12px', fontSize: '18px', fontWeight: 600, border: `1px solid ${T.sep}` }}>
+                                        {creator.avatarUrl ? <img src={creator.avatarUrl} style={{ width: '100%', height: '100%', borderRadius: '50%', objectFit: 'cover' }} /> : creator.name.charAt(0)}
+                                    </div>
+                                    <div style={{ fontSize: '14px', fontWeight: 700, color: T.ink, marginBottom: '2px', fontFamily: "'Fraunces',Georgia,serif", textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap' }}>
+                                        {creator.name}
+                                    </div>
+                                    <div style={{ fontSize: '11px', color: T.inkLight, fontFamily: "'Cormorant Garamond',Georgia,serif", fontStyle: 'italic', marginBottom: '12px' }}>
+                                        {Math.round(creator.compatibilityScore)}% Match
+                                    </div>
+
+                                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px' }}>
+                                        {creator.sharedInterests.slice(0, 2).map((interest, i) => (
+                                            <span key={i} style={{ fontSize: '9px', padding: '2px 6px', background: T.sageSoft, color: T.sage, borderRadius: '4px', whiteSpace: 'nowrap' }}>
+                                                {interest}
+                                            </span>
+                                        ))}
+                                        {creator.sharedInterests.length > 2 && (
+                                            <span style={{ fontSize: '9px', padding: '2px 6px', background: 'transparent', color: T.inkFaint }}>+{creator.sharedInterests.length - 2}</span>
+                                        )}
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+                )}
 
                 {error && (
                     <div style={{ padding: '12px 16px', borderRadius: '8px', background: T.claySoft, border: `1px solid ${T.clay}35`, color: T.clay, fontSize: '13px', marginBottom: '20px', fontFamily: 'Georgia,serif' }}>{error}</div>

@@ -37,6 +37,10 @@ interface ProfilePayload {
         categoryMatches: number;
         momentumBoost: number;
     };
+    creativeCompatibility?: {
+        score: number;
+        sharedInterests: string[];
+    };
     interests: InterestDetail[];
     posts: PostDetail[];
 }
@@ -242,6 +246,40 @@ export default function ProfilePage() {
                         </div>
                     </div>
                 </div>
+
+                {/* 2.5 Creative Compatibility Engine */}
+                {profile.creativeCompatibility && (
+                    <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 'var(--radius)', padding: '24px' }}>
+                        <div style={{ fontSize: '12px', textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--text-muted)', marginBottom: '4px', fontWeight: 600 }}>
+                            Creative Compatibility
+                        </div>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: '16px' }}>
+                            <div style={{ fontSize: '20px', fontWeight: 700, color: 'var(--text-primary)' }}>
+                                You ↔ {profile.displayName}
+                            </div>
+                            <div style={{ fontSize: '24px', fontWeight: 700, color: profile.creativeCompatibility.score >= 70 ? 'var(--green)' : profile.creativeCompatibility.score >= 40 ? 'var(--gold)' : 'var(--text-secondary)' }}>
+                                {profile.creativeCompatibility.score}%
+                            </div>
+                        </div>
+
+                        {profile.creativeCompatibility.sharedInterests.length > 0 ? (
+                            <div>
+                                <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginBottom: '8px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Shared Interests</div>
+                                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
+                                    {profile.creativeCompatibility.sharedInterests.map(interest => (
+                                        <span key={interest} style={{ fontSize: '12px', padding: '6px 12px', background: 'var(--accent-soft)', color: 'var(--accent)', borderRadius: '16px', fontWeight: 500 }}>
+                                            {interest}
+                                        </span>
+                                    ))}
+                                </div>
+                            </div>
+                        ) : (
+                            <div style={{ fontSize: '13px', color: 'var(--text-secondary)', fontStyle: 'italic' }}>
+                                No shared interests yet.
+                            </div>
+                        )}
+                    </div>
+                )}
 
                 {/* 3. Interest Breakdown */}
                 <div>
