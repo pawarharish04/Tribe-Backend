@@ -1,0 +1,22 @@
+
+> tribe-backend@0.1.0 build
+> next build
+
+▲ Next.js 16.1.6 (Turbopack)
+- Environments: .env
+
+⚠ The "middleware" file convention is deprecated. Please use "proxy" instead. Learn more: https://nextjs.org/docs/messages/middleware-to-proxy
+  Creating an optimized production build ...
+✓ Compiled successfully in 3.1s
+  Running TypeScript ...
+  Collecting page data using 15 workers ...
+  Generating static pages using 15 workers (0/32) ...
+  Generating static pages using 15 workers (8/32) 
+Error occurred prerendering page "/feed". Read more: https://nextjs.org/docs/messages/prerender-error
+ReferenceError: window is not defined
+    at <unknown> (C:\Users\Lenovo\Desktop\PROJECTS\TribeV1\tribe-backend\.next\server\chunks\ssr\src_app_(protected)_feed_page_tsx_3b20e37c._.js:1:9509)
+    at l (C:\Users\Lenovo\Desktop\PROJECTS\TribeV1\tribe-backend\.next\server\chunks\ssr\src_app_(protected)_feed_page_tsx_3b20e37c._.js:1:9477) {
+  digest: '147654880'
+}
+Export encountered an error on /(protected)/feed/page: /feed, exiting the build.
+⨯ Next.js build worker exited with code: 1 and signal: null

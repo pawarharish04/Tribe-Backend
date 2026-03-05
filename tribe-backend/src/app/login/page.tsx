@@ -33,8 +33,11 @@ export default function LoginPage() {
             localStorage.setItem('tribe_jwt', data.token);
             document.cookie = `tribe_token=${data.token}; path=/; max-age=${60 * 60 * 24 * 7}`;
 
+            console.log('Login response:', res.status);
+            console.log('Redirecting to feed');
+
             // Redirect instantly
-            router.push('/feed');
+            window.location.href = '/feed';
         } catch (err: any) {
             setError(err.message);
         } finally {
