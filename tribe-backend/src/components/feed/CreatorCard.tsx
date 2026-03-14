@@ -12,7 +12,8 @@ export default function CreatorCard({ creator }: any) {
                 flexDirection: 'column',
                 alignItems: 'center',
                 textDecoration: 'none',
-                color: 'inherit'
+                color: 'inherit',
+                scrollSnapAlign: 'start'
             }}
         >
             <img
@@ -40,6 +41,27 @@ export default function CreatorCard({ creator }: any) {
             }}>
                 {creator.name || creator.displayName}
             </p>
+
+            {(creator.sharedInterests || creator.interests) && (
+                <div style={{
+                    fontSize: '11px',
+                    color: 'var(--text-muted)',
+                    fontFamily: "'Cormorant Garamond', Georgia, serif",
+                    marginTop: '2px',
+                    textAlign: 'center',
+                    fontStyle: 'italic',
+                    whiteSpace: 'nowrap',
+                    overflow: 'hidden',
+                    textOverflow: 'ellipsis',
+                    maxWidth: '120px'
+                }}>
+                    {Array.isArray(creator.sharedInterests) 
+                        ? creator.sharedInterests.join(' · ')
+                        : Array.isArray(creator.interests) 
+                            ? creator.interests.map((i: any) => i.interest?.name || i?.name || i).join(' · ') 
+                            : ''}
+                </div>
+            )}
 
             {creator.compatibilityScore && (
                 <span style={{

@@ -6,7 +6,8 @@ export default function HorizontalScroller({ children }: { children: React.React
             display: 'flex',
             gap: '16px',
             overflowX: 'auto',
-            paddingBottom: '16px',
+            scrollSnapType: 'x mandatory',
+            paddingBottom: '6px',
             paddingLeft: '20px',
             paddingRight: '20px',
             msOverflowStyle: 'none',  /* IE and Edge */
