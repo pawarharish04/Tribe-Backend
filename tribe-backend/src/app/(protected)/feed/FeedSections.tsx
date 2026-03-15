@@ -7,17 +7,15 @@ import WorkCard from '../../../components/feed/WorkCard';
 import FeedSkeleton from '../../../components/feed/FeedSkeleton';
 
 export default function FeedSections({ 
-  trendingCreators,
-  creators, 
-  photography, 
-  coding, 
-  music 
+  forYou,
+  compatibleCreators, 
+  creativeWorks, 
+  newCreators 
 }: { 
-  trendingCreators: any[];
-  creators: any[]; 
-  photography: any[]; 
-  coding: any[]; 
-  music: any[]; 
+  forYou: any[];
+  compatibleCreators: any[]; 
+  creativeWorks: any[]; 
+  newCreators: any[]; 
 }) {
 
     return (
@@ -36,38 +34,31 @@ export default function FeedSections({
 
                 <div className="space-y-10" style={{ display: 'flex', flexDirection: 'column', gap: '40px' }}>
                     
-                    {/* 1. Trending Creators */}
-                    <FeedSection title="Trending Creators" link="/discover/trending">
-                        {!trendingCreators ? <FeedSkeleton /> : trendingCreators.map((c: any) => (
-                            <CreatorCard key={c.id || c.userId} creator={{ ...c, isTrending: true }} />
-                        ))}
-                    </FeedSection>
-
-                    {/* 2. Creators Similar to You */}
-                    <FeedSection title="Creators Similar to You" link="/discover/creators">
-                        {!creators ? <FeedSkeleton /> : creators.map((c: any) => (
+                    {/* 1. For You */}
+                    <FeedSection title="For You" link="/discover/foryou">
+                        {!forYou || forYou.length === 0 ? <FeedSkeleton /> : forYou.map((c: any) => (
                             <CreatorCard key={c.id || c.userId} creator={c} />
                         ))}
                     </FeedSection>
 
-                    {/* 2. Trending Photography */}
-                    <FeedSection title="Trending Photography" link="/discover/photography">
-                        {!photography ? <FeedSkeleton /> : photography.map((p: any) => (
+                    {/* 2. Compatible Creators */}
+                    <FeedSection title="Compatible Creators" link="/discover/creators">
+                        {!compatibleCreators || compatibleCreators.length === 0 ? <FeedSkeleton /> : compatibleCreators.map((c: any) => (
+                            <CreatorCard key={c.id || c.userId} creator={c} />
+                        ))}
+                    </FeedSection>
+
+                    {/* 3. Creative Works You Might Like */}
+                    <FeedSection title="Creative Works You Might Like" link="/discover/works">
+                        {!creativeWorks || creativeWorks.length === 0 ? <FeedSkeleton /> : creativeWorks.map((p: any) => (
                             <WorkCard key={p.id} post={p} />
                         ))}
                     </FeedSection>
 
-                    {/* 3. Coding Creators */}
-                    <FeedSection title="Coding Creators" link="/discover/coding">
-                        {!coding ? <FeedSkeleton /> : coding.map((p: any) => (
-                            <WorkCard key={p.id} post={p} />
-                        ))}
-                    </FeedSection>
-
-                    {/* 4. Music Creators */}
-                    <FeedSection title="Music Creators" link="/discover/music">
-                        {!music ? <FeedSkeleton /> : music.map((p: any) => (
-                            <WorkCard key={p.id} post={p} />
+                    {/* 4. New Creators */}
+                    <FeedSection title="New Creators" link="/discover/new">
+                        {!newCreators || newCreators.length === 0 ? <FeedSkeleton /> : newCreators.map((c: any) => (
+                            <CreatorCard key={c.id || c.userId} creator={c} />
                         ))}
                     </FeedSection>
                     

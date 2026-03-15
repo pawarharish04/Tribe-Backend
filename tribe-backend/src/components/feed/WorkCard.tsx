@@ -40,21 +40,10 @@ export default function WorkCard({ post }: any) {
 
     return (
         <motion.div
-            whileHover={{ scale: 1.02 }}
+            whileHover={{ y: -4 }}
             whileTap={{ scale: 0.98 }}
             transition={{ type: "spring", stiffness: 300 }}
-            style={{
-                minWidth: '220px',
-                maxWidth: '220px',
-                display: 'flex',
-                flexDirection: 'column',
-                borderRadius: '16px',
-                overflow: 'hidden',
-                border: '1px solid var(--border)',
-                background: 'var(--bg-card)',
-                boxShadow: 'var(--shadow-card)',
-                cursor: 'pointer',
-            }}
+            className="flex flex-col bg-white rounded-2xl border border-gray-100 shadow-sm hover:shadow-md transition-shadow overflow-hidden relative w-full cursor-pointer"
             onMouseEnter={() => setIsHovered(true)}
             onMouseLeave={() => setIsHovered(false)}
         >

@@ -1,5 +1,8 @@
 import { cookies } from 'next/headers';
 import FeedSections from './FeedSections';
+import { prisma } from '../../../lib/prisma';
+
+export const revalidate = 0; // Disable static caching
 
 export default async function FeedPage() {
   const cookieStore = await cookies();
@@ -10,35 +13,59 @@ export default async function FeedPage() {
 
   // Fetch all required data using SSR
   // Cache is disabled for feed to ensure it is always up-to-date with active user token
-  
-  const trendingCreators = await fetch(`${baseUrl}/api/trending-creators`, { 
-    next: { revalidate: 60 }
-  }).then(r => r.ok ? r.json() : null).catch(() => null);
 
-  const creators = await fetch(`${baseUrl}/api/recommend-creators`, { 
+  const forYouRaw = await fetch(`${baseUrl}/api/feed`, { 
+    headers,
+    cache: 'no-store'
+  }).then(r => r.ok ? r.json() : null).catch(() => null);
+  
+  const forYou = forYouRaw?.feed || [];
+
+  const compatibleCreators = await fetch(`${baseUrl}/api/recommend-creators`, { 
     headers,
     cache: 'no-store'
   }).then(r => r.ok ? r.json() : null).catch(() => null);
 
-  const photography = await fetch(`${baseUrl}/api/trending?interest=photography`, {
-    cache: 'no-store'
-  }).then(r => r.ok ? r.json() : null).catch(() => null);
+  const creativeWorksRaw = await prisma.interestPost.findMany({
+    where: { mediaId: { not: null } },
+    take: 10,
+    orderBy: { createdAt: 'desc' }, // Fresh content
+    include: {
+      media: true,
+      user: { select: { name: true, id: true, avatarUrl: true } }
+    }
+  });
 
-  const coding = await fetch(`${baseUrl}/api/trending?interest=coding`, {
-    cache: 'no-store'
-  }).then(r => r.ok ? r.json() : null).catch(() => null);
+  const creativeWorks = creativeWorksRaw.map(p => ({
+    id: p.id,
+    caption: p.caption,
+    mediaUrl: p.media?.url,
+    mediaType: p.media?.type,
+    creatorName: p.user.name,
+    creatorId: p.user.id,
+    creatorAvatar: p.user.avatarUrl
+  }));
 
-  const music = await fetch(`${baseUrl}/api/trending?interest=music`, {
-    cache: 'no-store'
-  }).then(r => r.ok ? r.json() : null).catch(() => null);
+  const newCreatorsRaw = await prisma.user.findMany({
+    where: { avatarUrl: { not: null } },
+    take: 10,
+    orderBy: { createdAt: 'desc' },
+    select: { id: true, name: true, avatarUrl: true, interests: { include: { interest: true } } }
+  });
+
+  const newCreators = newCreatorsRaw.map(u => ({
+    id: u.id,
+    name: u.name,
+    avatarUrl: u.avatarUrl,
+    interests: u.interests.map(i => i.interest.name),
+  }));
 
   return (
     <FeedSections
-      trendingCreators={trendingCreators}
-      creators={creators}
-      photography={photography}
-      coding={coding}
-      music={music}
+      forYou={forYou}
+      compatibleCreators={compatibleCreators}
+      creativeWorks={creativeWorks}
+      newCreators={newCreators}
     />
   );
 }

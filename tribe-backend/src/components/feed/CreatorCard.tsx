@@ -4,120 +4,91 @@ import Link from "next/link"
 import { motion } from "framer-motion"
 
 export default function CreatorCard({ creator }: any) {
+    const name = creator.name || creator.displayName || 'Unknown';
+    const avatar = creator.avatarUrl || creator.avatar || `https://ui-avatars.com/api/?name=${name}&background=E8E0D4&color=1C1917`;
+    
+    // Determine the score
+    const scoreVal = creator.compatibilityScore ? creator.compatibilityScore : creator.score;
+    const score = scoreVal !== undefined && scoreVal !== null ? Math.round(scoreVal) : null;
+    
+    // Extract tags
+    let tags: string[] = [];
+    if (Array.isArray(creator.sharedInterests)) {
+        tags = creator.sharedInterests;
+    } else if (Array.isArray(creator.interests)) {
+        tags = creator.interests.map((i: any) => i.interest?.name || i?.name || i);
+    }
+
     return (
         <motion.div
-            whileHover={{ scale: 1.05 }}
-            whileTap={{ scale: 0.97 }}
+            whileHover={{ y: -4 }}
             transition={{ type: "spring", stiffness: 300 }}
-            style={{ display: "flex", scrollSnapAlign: 'start' }}
+            className="flex flex-col bg-white rounded-2xl border border-gray-100 shadow-sm hover:shadow-md transition-shadow overflow-hidden relative w-full"
         >
             <Link
                 href={`/profile/${creator.id || creator.userId}`}
-                style={{
-                    minWidth: '120px',
-                    display: 'flex',
-                    flexDirection: 'column',
-                    alignItems: 'center',
-                    textDecoration: 'none',
-                    color: 'inherit',
-                }}
+                className="flex flex-col h-full text-inherit no-underline"
             >
-                <img
-                    src={creator.avatarUrl || creator.avatar || "/avatar.png"}
-                    loading="lazy"
-                    onError={(e) => { e.currentTarget.src = 'https://ui-avatars.com/api/?name=' + (creator.displayName || creator.name || 'U') + '&background=E8E0D4&color=1C1917'; }}
-                    style={{
-                        width: '72px',
-                        height: '72px',
-                        borderRadius: '50%',
-                        objectFit: 'cover',
-                        border: '1px solid var(--border)',
-                        padding: '2px',
-                        background: 'var(--bg-card)'
-                    }}
-                    alt={creator.name || creator.displayName}
-                />
+                {/* Header Area */}
+                <div className="h-24 bg-gradient-to-r from-[#FDFBF7] to-[#F4F1EA] relative flex justify-center items-end border-b border-gray-50">
+                    {/* Compatibility Circle */}
+                    {score !== null && (
+                        <div className="absolute top-3 right-3 w-[38px] h-[38px] rounded-full bg-white flex items-center justify-center shadow-sm border border-gray-100 z-10">
+                            <span className="text-[10px] font-bold text-[#8B7355] font-serif">{score}%</span>
+                            <svg className="absolute inset-0 w-full h-full -rotate-90 rounded-full" viewBox="0 0 36 36">
+                                <circle
+                                    className="text-gray-100"
+                                    fill="none"
+                                    strokeWidth="2.5"
+                                    stroke="currentColor"
+                                    cx="18" cy="18" r="16"
+                                />
+                                <circle
+                                    className="text-[#8B7355]"
+                                    fill="none"
+                                    strokeWidth="2.5"
+                                    strokeDasharray={`${score}, 100`}
+                                    stroke="currentColor"
+                                    cx="18" cy="18" r="16"
+                                    style={{ strokeLinecap: 'round' }}
+                                />
+                            </svg>
+                        </div>
+                    )}
+                    
+                    {/* Avatar */}
+                    <img
+                        src={avatar}
+                        loading="lazy"
+                        onError={(e) => { e.currentTarget.src = `https://ui-avatars.com/api/?name=${name}&background=E8E0D4&color=1C1917`; }}
+                        className="w-16 h-16 rounded-full object-cover border-4 border-white absolute -bottom-8 bg-white shadow-sm"
+                        alt={name}
+                    />
+                </div>
 
-                <p style={{
-                    fontSize: '14px',
-                    marginTop: '10px',
-                    fontFamily: "'Fraunces', Georgia, serif",
-                    fontWeight: 600,
-                    textAlign: 'center',
-                    lineHeight: 1.2
-                }}>
-                    {creator.name || creator.displayName}
-                </p>
+                {/* Content Area */}
+                <div className="px-5 pt-11 pb-6 mb-2 flex flex-col flex-grow items-center text-center">
+                    <h3 className="text-base font-semibold font-serif text-gray-900 leading-tight">
+                        {name}
+                    </h3>
 
-                {(creator.sharedInterests || creator.interests) && (
-                    <div style={{
-                        fontSize: '11px',
-                        color: 'var(--text-muted)',
-                        fontFamily: "'Cormorant Garamond', Georgia, serif",
-                        marginTop: '2px',
-                        textAlign: 'center',
-                        fontStyle: 'italic',
-                        whiteSpace: 'nowrap',
-                        overflow: 'hidden',
-                        textOverflow: 'ellipsis',
-                        maxWidth: '120px'
-                    }}>
-                        {Array.isArray(creator.sharedInterests) 
-                            ? creator.sharedInterests.join(' · ')
-                            : Array.isArray(creator.interests) 
-                                ? creator.interests.map((i: any) => i.interest?.name || i?.name || i).join(' · ') 
-                                : ''}
+                    <p className="text-xs text-gray-500 mt-1 mb-4 italic font-serif">
+                        {creator.role || 'Creative'} {creator.location ? `· ${creator.location}` : ''}
+                    </p>
+
+                    <div className="flex flex-wrap justify-center gap-1.5 mt-auto">
+                        {tags.slice(0, 3).map((tag, idx) => (
+                            <span key={idx} className="px-2.5 py-1 bg-[#F9F8F6] text-[#6B5A45] rounded-full text-[10px] uppercase tracking-wider font-semibold border border-[#EFEBE4] whitespace-nowrap">
+                                {tag}
+                            </span>
+                        ))}
+                        {tags.length > 3 && (
+                            <span className="px-2.5 py-1 bg-[#F9F8F6] text-[#6B5A45] rounded-full text-[10px] font-semibold border border-[#EFEBE4] whitespace-nowrap">
+                                +{tags.length - 3}
+                            </span>
+                        )}
                     </div>
-                )}
-
-                {creator.compatibilityScore && (
-                    <span style={{
-                        fontSize: '11px',
-                        opacity: 0.6,
-                        marginTop: '4px',
-                        fontFamily: "'Cormorant Garamond', Georgia, serif",
-                        backgroundColor: 'var(--accent-soft)',
-                        color: 'var(--accent)',
-                        padding: '2px 8px',
-                        borderRadius: '12px',
-                        border: '1px solid var(--border-subtle)'
-                    }}>
-                        {Math.round(creator.compatibilityScore)}% match
-                    </span>
-                )}
-                {!creator.isTrending && creator.score && !creator.compatibilityScore && (
-                    <span style={{
-                        fontSize: '11px',
-                        opacity: 0.6,
-                        marginTop: '4px',
-                        fontFamily: "'Cormorant Garamond', Georgia, serif",
-                        backgroundColor: 'var(--accent-soft)',
-                        color: 'var(--accent)',
-                        padding: '2px 8px',
-                        borderRadius: '12px',
-                        border: '1px solid var(--border-subtle)'
-                    }}>
-                        {Math.round(creator.score)}% match
-                    </span>
-                )}
-                {creator.isTrending && (
-                    <span style={{
-                        fontSize: '11px',
-                        fontWeight: 600,
-                        marginTop: '4px',
-                        fontFamily: "'Cormorant Garamond', Georgia, serif",
-                        backgroundColor: '#FFF0F0',
-                        color: '#E03131',
-                        padding: '2px 8px',
-                        borderRadius: '12px',
-                        border: '1px solid #FFC9C9',
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '4px'
-                    }}>
-                        🔥 Trending
-                    </span>
-                )}
+                </div>
             </Link>
         </motion.div>
     )
