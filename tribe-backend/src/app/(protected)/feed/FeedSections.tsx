@@ -6,22 +6,22 @@ import CreatorCard from '../../../components/feed/CreatorCard';
 import WorkCard from '../../../components/feed/WorkCard';
 import FeedSkeleton from '../../../components/feed/FeedSkeleton';
 
-export default function FeedSections({ 
-  forYou,
-  compatibleCreators, 
-  creativeWorks, 
-  newCreators 
-}: { 
-  forYou: any[];
-  compatibleCreators: any[]; 
-  creativeWorks: any[]; 
-  newCreators: any[]; 
+export default function FeedSections({
+    forYou,
+    compatibleCreators,
+    creativeWorks,
+    newCreators
+}: {
+    forYou: any[];
+    compatibleCreators: any[];
+    creativeWorks: any[];
+    newCreators: any[];
 }) {
 
     return (
         <div style={{ minHeight: '100vh', background: T.cream, paddingTop: '40px', paddingBottom: '100px' }}>
             <main style={{ maxWidth: '800px', margin: '0 auto', width: '100%' }}>
-                
+
                 {/* Header */}
                 <div style={{ padding: '0 20px', marginBottom: '32px' }}>
                     <h1 style={{ fontSize: '32px', fontFamily: "'Fraunces',Georgia,serif", fontWeight: 900, fontStyle: 'italic', color: T.ink, letterSpacing: '-0.03em', marginBottom: '6px' }}>
@@ -33,7 +33,7 @@ export default function FeedSections({
                 </div>
 
                 <div className="space-y-10" style={{ display: 'flex', flexDirection: 'column', gap: '40px' }}>
-                    
+
                     {/* 1. For You */}
                     <FeedSection title="For You" link="/discover/foryou">
                         {!forYou || forYou.length === 0 ? <FeedSkeleton /> : forYou.map((c: any) => (
@@ -61,7 +61,7 @@ export default function FeedSections({
                             <CreatorCard key={c.id || c.userId} creator={c} />
                         ))}
                     </FeedSection>
-                    
+
                 </div>
             </main>
         </div>

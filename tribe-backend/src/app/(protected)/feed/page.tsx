@@ -2,34 +2,34 @@ import { cookies } from 'next/headers';
 import FeedSections from './FeedSections';
 import { prisma } from '../../../lib/prisma';
 
-export const revalidate = 0; // Disable static caching
+export const revalidate = 0;
 
 export default async function FeedPage() {
   const cookieStore = await cookies();
   const token = cookieStore.get('tribe_token')?.value;
-  
+
   const baseUrl = process.env.NEXT_PUBLIC_URL || 'http://localhost:3000';
   const headers: Record<string, string> = token ? { Authorization: `Bearer ${token}` } : {};
 
-  // Fetch all required data using SSR
-  // Cache is disabled for feed to ensure it is always up-to-date with active user token
-
-  const forYouRaw = await fetch(`${baseUrl}/api/feed`, { 
+  // For You
+  const forYouRaw = await fetch(`${baseUrl}/api/feed`, {
     headers,
     cache: 'no-store'
   }).then(r => r.ok ? r.json() : null).catch(() => null);
   
   const forYou = forYouRaw?.feed || [];
 
-  const compatibleCreators = await fetch(`${baseUrl}/api/recommend-creators`, { 
+  // Compatible Creators
+  const compatibleCreators = await fetch(`${baseUrl}/api/recommend-creators`, {
     headers,
     cache: 'no-store'
   }).then(r => r.ok ? r.json() : null).catch(() => null);
 
+  // Creative Works You Might Like
   const creativeWorksRaw = await prisma.interestPost.findMany({
     where: { mediaId: { not: null } },
     take: 10,
-    orderBy: { createdAt: 'desc' }, // Fresh content
+    orderBy: { createdAt: 'desc' },
     include: {
       media: true,
       user: { select: { name: true, id: true, avatarUrl: true } }
@@ -46,6 +46,7 @@ export default async function FeedPage() {
     creatorAvatar: p.user.avatarUrl
   }));
 
+  // New Creators
   const newCreatorsRaw = await prisma.user.findMany({
     where: { avatarUrl: { not: null } },
     take: 10,

@@ -5,9 +5,6 @@ import { usePathname } from 'next/navigation';
 import AvatarDropdown from './AvatarDropdown';
 import { T } from '../design/tokens';
 
-import { useEffect, useState } from 'react';
-import useScrollDirection from '../hooks/useScrollDirection';
-
 const NAV_ITEMS = [
     { label: 'Discover', href: '/feed' },
     { label: 'Matches', href: '/matches' },
@@ -16,14 +13,6 @@ const NAV_ITEMS = [
 
 export default function Navbar() {
     const pathname = usePathname();
-    const direction = useScrollDirection();
-    const [scrolled, setScrolled] = useState(false);
-
-    useEffect(() => {
-        const onScroll = () => setScrolled(window.scrollY > 10);
-        window.addEventListener('scroll', onScroll, { passive: true });
-        return () => window.removeEventListener('scroll', onScroll);
-    }, []);
 
     return (
         <header style={{
@@ -31,16 +20,14 @@ export default function Navbar() {
             top: 0,
             zIndex: 100,
             height: '56px',
-            borderBottom: scrolled ? `1px solid ${T.sep}` : '1px solid transparent',
-            background: scrolled ? 'rgba(247,243,237,0.85)' : 'transparent',
-            backdropFilter: scrolled ? 'blur(18px)' : 'none',
-            WebkitBackdropFilter: scrolled ? 'blur(18px)' : 'none',
+            borderBottom: `1px solid ${T.sep}`,
+            background: 'rgba(247,243,237,0.95)',
+            backdropFilter: 'blur(18px)',
+            WebkitBackdropFilter: 'blur(18px)',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'space-between',
             padding: '0 28px',
-            transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
-            transform: direction === 'down' ? 'translateY(-100%)' : 'translateY(0)',
         }}>
             {/* Logo */}
             <Link href="/feed" style={{ display: 'flex', alignItems: 'center', gap: '10px', textDecoration: 'none' }}>

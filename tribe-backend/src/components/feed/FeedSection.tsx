@@ -1,6 +1,7 @@
 "use client"
 
 import FeedSectionHeader from "./FeedSectionHeader"
+import HorizontalScroller from "./HorizontalScroller"
 
 export default function FeedSection({
     title,
@@ -15,9 +16,9 @@ export default function FeedSection({
         <section style={{ marginBottom: '40px' }}>
             <FeedSectionHeader title={title} link={link} />
 
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 px-5">
+            <HorizontalScroller>
                 {children}
-            </div>
+            </HorizontalScroller>
         </section>
     )
 }
