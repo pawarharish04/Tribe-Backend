@@ -1,98 +1,124 @@
 "use client"
 
 import Link from "next/link"
+import { motion } from "framer-motion"
 
 export default function CreatorCard({ creator }: any) {
     return (
-        <Link
-            href={`/profile/${creator.id || creator.userId}`}
-            style={{
-                minWidth: '120px',
-                display: 'flex',
-                flexDirection: 'column',
-                alignItems: 'center',
-                textDecoration: 'none',
-                color: 'inherit',
-                scrollSnapAlign: 'start'
-            }}
+        <motion.div
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.97 }}
+            transition={{ type: "spring", stiffness: 300 }}
+            style={{ display: "flex", scrollSnapAlign: 'start' }}
         >
-            <img
-                src={creator.avatarUrl || creator.avatar || "/avatar.png"}
-                onError={(e) => { e.currentTarget.src = 'https://ui-avatars.com/api/?name=' + (creator.displayName || creator.name || 'U') + '&background=E8E0D4&color=1C1917'; }}
+            <Link
+                href={`/profile/${creator.id || creator.userId}`}
                 style={{
-                    width: '72px',
-                    height: '72px',
-                    borderRadius: '50%',
-                    objectFit: 'cover',
-                    border: '1px solid var(--border)',
-                    padding: '2px',
-                    background: 'var(--bg-card)'
+                    minWidth: '120px',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    alignItems: 'center',
+                    textDecoration: 'none',
+                    color: 'inherit',
                 }}
-                alt={creator.name || creator.displayName}
-            />
+            >
+                <img
+                    src={creator.avatarUrl || creator.avatar || "/avatar.png"}
+                    loading="lazy"
+                    onError={(e) => { e.currentTarget.src = 'https://ui-avatars.com/api/?name=' + (creator.displayName || creator.name || 'U') + '&background=E8E0D4&color=1C1917'; }}
+                    style={{
+                        width: '72px',
+                        height: '72px',
+                        borderRadius: '50%',
+                        objectFit: 'cover',
+                        border: '1px solid var(--border)',
+                        padding: '2px',
+                        background: 'var(--bg-card)'
+                    }}
+                    alt={creator.name || creator.displayName}
+                />
 
-            <p style={{
-                fontSize: '14px',
-                marginTop: '10px',
-                fontFamily: "'Fraunces', Georgia, serif",
-                fontWeight: 600,
-                textAlign: 'center',
-                lineHeight: 1.2
-            }}>
-                {creator.name || creator.displayName}
-            </p>
-
-            {(creator.sharedInterests || creator.interests) && (
-                <div style={{
-                    fontSize: '11px',
-                    color: 'var(--text-muted)',
-                    fontFamily: "'Cormorant Garamond', Georgia, serif",
-                    marginTop: '2px',
+                <p style={{
+                    fontSize: '14px',
+                    marginTop: '10px',
+                    fontFamily: "'Fraunces', Georgia, serif",
+                    fontWeight: 600,
                     textAlign: 'center',
-                    fontStyle: 'italic',
-                    whiteSpace: 'nowrap',
-                    overflow: 'hidden',
-                    textOverflow: 'ellipsis',
-                    maxWidth: '120px'
+                    lineHeight: 1.2
                 }}>
-                    {Array.isArray(creator.sharedInterests) 
-                        ? creator.sharedInterests.join(' · ')
-                        : Array.isArray(creator.interests) 
-                            ? creator.interests.map((i: any) => i.interest?.name || i?.name || i).join(' · ') 
-                            : ''}
-                </div>
-            )}
+                    {creator.name || creator.displayName}
+                </p>
 
-            {creator.compatibilityScore && (
-                <span style={{
-                    fontSize: '11px',
-                    opacity: 0.6,
-                    marginTop: '4px',
-                    fontFamily: "'Cormorant Garamond', Georgia, serif",
-                    backgroundColor: 'var(--accent-soft)',
-                    color: 'var(--accent)',
-                    padding: '2px 8px',
-                    borderRadius: '12px',
-                    border: '1px solid var(--border-subtle)'
-                }}>
-                    {Math.round(creator.compatibilityScore)}% match
-                </span>
-            )}
-            {creator.score && !creator.compatibilityScore && (
-                <span style={{
-                    fontSize: '11px',
-                    opacity: 0.6,
-                    marginTop: '4px',
-                    fontFamily: "'Cormorant Garamond', Georgia, serif",
-                    backgroundColor: 'var(--accent-soft)',
-                    color: 'var(--accent)',
-                    padding: '2px 8px',
-                    borderRadius: '12px',
-                    border: '1px solid var(--border-subtle)'
-                }}>
-                    {Math.round(creator.score)}% match
-                </span>
-            )}
-        </Link>
+                {(creator.sharedInterests || creator.interests) && (
+                    <div style={{
+                        fontSize: '11px',
+                        color: 'var(--text-muted)',
+                        fontFamily: "'Cormorant Garamond', Georgia, serif",
+                        marginTop: '2px',
+                        textAlign: 'center',
+                        fontStyle: 'italic',
+                        whiteSpace: 'nowrap',
+                        overflow: 'hidden',
+                        textOverflow: 'ellipsis',
+                        maxWidth: '120px'
+                    }}>
+                        {Array.isArray(creator.sharedInterests) 
+                            ? creator.sharedInterests.join(' · ')
+                            : Array.isArray(creator.interests) 
+                                ? creator.interests.map((i: any) => i.interest?.name || i?.name || i).join(' · ') 
+                                : ''}
+                    </div>
+                )}
+
+                {creator.compatibilityScore && (
+                    <span style={{
+                        fontSize: '11px',
+                        opacity: 0.6,
+                        marginTop: '4px',
+                        fontFamily: "'Cormorant Garamond', Georgia, serif",
+                        backgroundColor: 'var(--accent-soft)',
+                        color: 'var(--accent)',
+                        padding: '2px 8px',
+                        borderRadius: '12px',
+                        border: '1px solid var(--border-subtle)'
+                    }}>
+                        {Math.round(creator.compatibilityScore)}% match
+                    </span>
+                )}
+                {!creator.isTrending && creator.score && !creator.compatibilityScore && (
+                    <span style={{
+                        fontSize: '11px',
+                        opacity: 0.6,
+                        marginTop: '4px',
+                        fontFamily: "'Cormorant Garamond', Georgia, serif",
+                        backgroundColor: 'var(--accent-soft)',
+                        color: 'var(--accent)',
+                        padding: '2px 8px',
+                        borderRadius: '12px',
+                        border: '1px solid var(--border-subtle)'
+                    }}>
+                        {Math.round(creator.score)}% match
+                    </span>
+                )}
+                {creator.isTrending && (
+                    <span style={{
+                        fontSize: '11px',
+                        fontWeight: 600,
+                        marginTop: '4px',
+                        fontFamily: "'Cormorant Garamond', Georgia, serif",
+                        backgroundColor: '#FFF0F0',
+                        color: '#E03131',
+                        padding: '2px 8px',
+                        borderRadius: '12px',
+                        border: '1px solid #FFC9C9',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '4px'
+                    }}>
+                        🔥 Trending
+                    </span>
+                )}
+            </Link>
+        </motion.div>
     )
 }

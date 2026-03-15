@@ -1,31 +1,67 @@
 "use client"
 import { useState } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 
 export default function WorkCard({ post }: any) {
     const [isHovered, setIsHovered] = useState(false);
+    const [heart, setHeart] = useState<{ x: number, y: number, id: number } | null>(null);
+    const initialLikes = post.likes !== undefined ? post.likes : (post._count && post._count.likes) || 0;
+    const [likesCount, setLikesCount] = useState({ count: initialLikes, liked: false });
+
     // Try to use actual media URL if available, fallback to un-found generic
     const mediaUrl = post.mediaUrl || (post.media && post.media.url) || 'https://source.unsplash.com/random/300x300';
     const type = post.mediaType || (post.media && post.media.type) || 'image';
-    const likesCount = post.likes || (post._count && post._count.likes) || 0;
+
+    const handleDoubleTap = async (e: React.MouseEvent) => {
+        const rect = e.currentTarget.getBoundingClientRect();
+        
+        setHeart({
+            x: e.clientX - rect.left,
+            y: e.clientY - rect.top,
+            id: Date.now()
+        });
+
+        setTimeout(() => setHeart(null), 800);
+
+        if (!likesCount.liked) {
+            // Optimistic update
+            const prevCount = likesCount.count;
+            setLikesCount({ count: prevCount + 1, liked: true });
+            
+            try {
+                // If API exists: await fetch(`/api/post-likes?postId=${post.id}`, { method: 'POST' });
+                // We'll simulate a fetch for the optimistic update
+            } catch {
+                // Rollback on failure
+                setLikesCount({ count: prevCount, liked: false });
+            }
+        }
+    };
 
     return (
-        <div style={{
-            minWidth: '220px',
-            maxWidth: '220px',
-            display: 'flex',
-            flexDirection: 'column',
-            borderRadius: '16px',
-            overflow: 'hidden',
-            border: '1px solid var(--border)',
-            background: 'var(--bg-card)',
-            boxShadow: 'var(--shadow-card)',
-            cursor: 'pointer',
-            transition: 'var(--transition)'
-        }}
-            onMouseEnter={e => { e.currentTarget.style.transform = 'translateY(-2px)'; setIsHovered(true); }}
-            onMouseLeave={e => { e.currentTarget.style.transform = 'translateY(0)'; setIsHovered(false); }}
+        <motion.div
+            whileHover={{ scale: 1.02 }}
+            whileTap={{ scale: 0.98 }}
+            transition={{ type: "spring", stiffness: 300 }}
+            style={{
+                minWidth: '220px',
+                maxWidth: '220px',
+                display: 'flex',
+                flexDirection: 'column',
+                borderRadius: '16px',
+                overflow: 'hidden',
+                border: '1px solid var(--border)',
+                background: 'var(--bg-card)',
+                boxShadow: 'var(--shadow-card)',
+                cursor: 'pointer',
+            }}
+            onMouseEnter={() => setIsHovered(true)}
+            onMouseLeave={() => setIsHovered(false)}
         >
-            <div style={{ position: 'relative', width: '100%', height: '220px' }}>
+            <div 
+                style={{ position: 'relative', width: '100%', height: '220px' }}
+                onDoubleClick={handleDoubleTap}
+            >
                 <div style={{
                     position: 'absolute',
                     inset: 0,
@@ -35,12 +71,36 @@ export default function WorkCard({ post }: any) {
                     justifyContent: 'center',
                     opacity: isHovered ? 1 : 0,
                     transition: 'opacity 0.2s',
-                    zIndex: 10
+                    zIndex: 10,
+                    pointerEvents: 'none',
                 }}>
-                    <span style={{ color: '#fff', fontSize: '18px', fontWeight: 600, fontFamily: "'Cormorant Garamond', Georgia, serif" }}>
-                        ♥ {likesCount}
+                    <span style={{ color: likesCount.liked ? '#ff3b30' : '#fff', fontSize: '18px', fontWeight: 600, fontFamily: "'Cormorant Garamond', Georgia, serif" }}>
+                        {likesCount.liked ? '❤️' : '♥'} {likesCount.count}
                     </span>
                 </div>
+
+                <AnimatePresence>
+                    {heart && (
+                        <motion.div
+                            initial={{ scale: 0, opacity: 1 }}
+                            animate={{ scale: 2.5, opacity: 0 }}
+                            exit={{ opacity: 0 }}
+                            transition={{ duration: 0.8 }}
+                            style={{
+                                position: 'absolute',
+                                left: heart.x - 20, // offset center
+                                top: heart.y - 20, // offset center
+                                color: '#ff3b30',
+                                fontSize: '40px',
+                                zIndex: 20,
+                                pointerEvents: 'none',
+                            }}
+                        >
+                            ❤️
+                        </motion.div>
+                    )}
+                </AnimatePresence>
+
                 {type === 'video' ? (
                     <video
                         src={mediaUrl}
@@ -73,6 +133,7 @@ export default function WorkCard({ post }: any) {
                     {post.caption || 'Untitled work'}
                 </p>
             </div>
-        </div>
+        </motion.div>
     )
 }
+

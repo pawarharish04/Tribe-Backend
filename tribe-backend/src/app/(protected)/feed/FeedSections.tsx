@@ -7,11 +7,13 @@ import WorkCard from '../../../components/feed/WorkCard';
 import FeedSkeleton from '../../../components/feed/FeedSkeleton';
 
 export default function FeedSections({ 
+  trendingCreators,
   creators, 
   photography, 
   coding, 
   music 
 }: { 
+  trendingCreators: any[];
   creators: any[]; 
   photography: any[]; 
   coding: any[]; 
@@ -34,7 +36,14 @@ export default function FeedSections({
 
                 <div className="space-y-10" style={{ display: 'flex', flexDirection: 'column', gap: '40px' }}>
                     
-                    {/* 1. Creators Similar to You */}
+                    {/* 1. Trending Creators */}
+                    <FeedSection title="Trending Creators" link="/discover/trending">
+                        {!trendingCreators ? <FeedSkeleton /> : trendingCreators.map((c: any) => (
+                            <CreatorCard key={c.id || c.userId} creator={{ ...c, isTrending: true }} />
+                        ))}
+                    </FeedSection>
+
+                    {/* 2. Creators Similar to You */}
                     <FeedSection title="Creators Similar to You" link="/discover/creators">
                         {!creators ? <FeedSkeleton /> : creators.map((c: any) => (
                             <CreatorCard key={c.id || c.userId} creator={c} />

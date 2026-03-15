@@ -11,6 +11,10 @@ export default async function FeedPage() {
   // Fetch all required data using SSR
   // Cache is disabled for feed to ensure it is always up-to-date with active user token
   
+  const trendingCreators = await fetch(`${baseUrl}/api/trending-creators`, { 
+    next: { revalidate: 60 }
+  }).then(r => r.ok ? r.json() : null).catch(() => null);
+
   const creators = await fetch(`${baseUrl}/api/recommend-creators`, { 
     headers,
     cache: 'no-store'
@@ -30,6 +34,7 @@ export default async function FeedPage() {
 
   return (
     <FeedSections
+      trendingCreators={trendingCreators}
       creators={creators}
       photography={photography}
       coding={coding}
