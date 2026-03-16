@@ -36,7 +36,7 @@ export async function POST(req: Request) {
 
         const secret = process.env.JWT_SECRET || 'default-secret-key';
         const token = jwt.sign(
-            { userId: user.id },
+            { userId: user.id, role: user.role },
             secret,
             { expiresIn: '7d' }
         );

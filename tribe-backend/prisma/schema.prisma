@@ -17,6 +17,7 @@ model User {
   email    String  @unique
   password String
   name     String?
+  role     String  @default("USER")
 
   // Profile fields
   bio             String?
@@ -47,6 +48,12 @@ model User {
   sentMessages      Message[]
   viewerImpressions FeedImpression[] @relation("ViewerImpressions")
   targetImpressions FeedImpression[] @relation("TargetImpressions")
+
+  blocksInitiated   Block[] @relation("BlocksInitiated")
+  blocksReceived    Block[] @relation("BlocksReceived")
+
+  reportsInitiated  Report[] @relation("ReportsInitiated")
+  reportsReceived   Report[] @relation("ReportsReceived")
 
   lastActiveAt DateTime @default(now())
   createdAt    DateTime @default(now())
@@ -205,4 +212,50 @@ model Message {
 
   @@index([matchId, createdAt])
   @@index([senderId])
+}
+
+model Block {
+  id        String   @id @default(uuid())
+  blockerId String
+  blockedId String
+  createdAt DateTime @default(now())
+
+  blocker User @relation("BlocksInitiated", fields: [blockerId], references: [id], onDelete: Cascade)
+  blocked User @relation("BlocksReceived", fields: [blockedId], references: [id], onDelete: Cascade)
+
+  @@unique([blockerId, blockedId])
+  @@index([blockerId])
+  @@index([blockedId])
+}
+
+model Report {
+  id            String         @id @default(uuid())
+  reporterId    String
+  reportedId    String
+  category      ReportCategory
+  description   String?
+  screenshotUrl String?
+  status        ReportStatus   @default(PENDING)
+  createdAt     DateTime       @default(now())
+
+  reporter User @relation("ReportsInitiated", fields: [reporterId], references: [id], onDelete: Cascade)
+  reported User @relation("ReportsReceived", fields: [reportedId], references: [id], onDelete: Cascade)
+
+  @@index([reporterId])
+  @@index([reportedId])
+  @@index([status])
+}
+
+enum ReportCategory {
+  SPAM
+  FAKE_PROFILE
+  INAPPROPRIATE_CONTENT
+  HARASSMENT
+  OTHER
+}
+
+enum ReportStatus {
+  PENDING
+  REVIEWED
+  DISMISSED
 }

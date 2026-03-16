@@ -168,6 +168,25 @@ export async function GET(req: Request) {
         const ignoredUserIds = pastInteractions.map((i: any) => i.targetId);
         ignoredUserIds.push(userId); // Add self to neglected list
 
+        // 2.1 Fetch blocks to ignore both ways
+        const blocks = await prisma.block.findMany({
+            where: {
+                OR: [
+                    { blockerId: userId },
+                    { blockedId: userId }
+                ]
+            },
+            select: {
+                blockerId: true,
+                blockedId: true
+            }
+        });
+
+        blocks.forEach((b: { blockerId: string; blockedId: string }) => {
+            if (b.blockerId === userId) ignoredUserIds.push(b.blockedId);
+            if (b.blockedId === userId) ignoredUserIds.push(b.blockerId);
+        });
+
         // 3. Prepare the feed pool
         const hasLocation = currentUser.latitude !== null && currentUser.longitude !== null;
 

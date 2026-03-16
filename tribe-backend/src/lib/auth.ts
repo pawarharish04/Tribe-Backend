@@ -1,6 +1,11 @@
 import jwt from 'jsonwebtoken';
 
 export function getUserIdFromRequest(req: Request): string | null {
+    const auth = getAuthFromRequest(req);
+    return auth?.userId || null;
+}
+
+export function getAuthFromRequest(req: Request): { userId: string, role: string } | null {
     const authHeader = req.headers.get('authorization');
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
         return null;
@@ -9,8 +14,8 @@ export function getUserIdFromRequest(req: Request): string | null {
     const token = authHeader.split(' ')[1];
     try {
         const secret = process.env.JWT_SECRET || 'default-secret-key';
-        const decoded = jwt.verify(token, secret) as { userId: string };
-        return decoded.userId;
+        const decoded = jwt.verify(token, secret) as { userId: string, role: string };
+        return { userId: decoded.userId, role: decoded.role };
     } catch (error) {
         return null;
     }
