@@ -259,3 +259,34 @@ enum ReportStatus {
   REVIEWED
   DISMISSED
 }
+
+model InterestRoom {
+  id         String           @id @default(cuid())
+  interestId String           @unique
+  interest   Interest         @relation(fields: [interestId], references: [id])
+  createdAt  DateTime         @default(now())
+  messages   RoomMessage[]
+  members    RoomMembership[]
+}
+
+model RoomMessage {
+  id        String       @id @default(cuid())
+  roomId    String
+  room      InterestRoom @relation(fields: [roomId], references: [id])
+  senderId  String
+  sender    User         @relation(fields: [senderId], references: [id])
+  content   String
+  createdAt DateTime     @default(now())
+}
+
+model RoomMembership {
+  id       String       @id @default(cuid())
+  roomId   String
+  room     InterestRoom @relation(fields: [roomId], references: [id])
+  userId   String
+  user     User         @relation(fields: [userId], references: [id])
+  joinedAt DateTime     @default(now())
+
+  @@unique([roomId, userId])
+}
+
