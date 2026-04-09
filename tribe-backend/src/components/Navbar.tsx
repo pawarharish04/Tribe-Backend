@@ -3,7 +3,6 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import AvatarDropdown from './AvatarDropdown';
-import { T } from '../design/tokens';
 
 const NAV_ITEMS = [
     { label: 'Discover', href: '/feed' },
@@ -11,6 +10,7 @@ const NAV_ITEMS = [
     { label: 'Activity', href: '/activity' },
 ] as const;
 
+/** Desktop-only top navbar — hidden on mobile (handled by BottomNav) */
 export default function Navbar() {
     const pathname = usePathname();
 
@@ -19,11 +19,11 @@ export default function Navbar() {
             position: 'sticky',
             top: 0,
             zIndex: 100,
-            height: '56px',
-            borderBottom: `1px solid ${T.sep}`,
-            background: 'rgba(247,243,237,0.95)',
-            backdropFilter: 'blur(18px)',
-            WebkitBackdropFilter: 'blur(18px)',
+            height: '60px',
+            borderBottom: '1px solid rgba(255,255,255,0.08)',
+            background: 'rgba(10,10,15,0.80)',
+            backdropFilter: 'blur(24px) saturate(180%)',
+            WebkitBackdropFilter: 'blur(24px) saturate(180%)',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'space-between',
@@ -32,22 +32,26 @@ export default function Navbar() {
             {/* Logo */}
             <Link href="/feed" style={{ display: 'flex', alignItems: 'center', gap: '10px', textDecoration: 'none' }}>
                 <div style={{
-                    width: '28px', height: '28px', borderRadius: '7px',
-                    background: T.ink,
+                    width: '30px', height: '30px', borderRadius: '9px',
+                    background: 'linear-gradient(135deg,#8b5cf6,#ec4899)',
                     display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    fontSize: '13px', fontFamily: "'Fraunces',Georgia,serif",
-                    fontWeight: 900, color: T.cream, flexShrink: 0,
+                    fontSize: '14px', fontFamily: 'Inter, sans-serif',
+                    fontWeight: 800, color: '#fff', flexShrink: 0,
+                    boxShadow: '0 0 16px rgba(139,92,246,0.4)',
                 }}>T</div>
                 <span style={{
-                    fontFamily: "'Fraunces',Georgia,serif",
-                    fontWeight: 700, fontStyle: 'italic',
-                    fontSize: '17px', letterSpacing: '-0.02em',
-                    color: T.ink,
+                    fontFamily: 'Inter, sans-serif',
+                    fontWeight: 800, fontSize: '17px',
+                    letterSpacing: '-0.04em',
+                    background: 'linear-gradient(135deg,#8b5cf6,#ec4899)',
+                    WebkitBackgroundClip: 'text',
+                    backgroundClip: 'text',
+                    WebkitTextFillColor: 'transparent',
                 }}>Tribe</span>
             </Link>
 
             {/* Nav links */}
-            <nav style={{ display: 'flex', gap: '2px', alignItems: 'center' }}>
+            <nav style={{ display: 'flex', gap: '4px', alignItems: 'center' }}>
                 {NAV_ITEMS.map(({ label, href }) => {
                     const isActive = pathname === href || pathname.startsWith(href + '/');
                     return (
@@ -55,14 +59,13 @@ export default function Navbar() {
                             position: 'relative',
                             padding: '6px 14px',
                             borderRadius: '8px',
-                            fontSize: '12px',
-                            fontFamily: 'Georgia, serif',
-                            letterSpacing: '0.04em',
+                            fontSize: '13px',
+                            fontFamily: 'Inter, sans-serif',
                             fontWeight: isActive ? 600 : 400,
                             textDecoration: 'none',
-                            color: isActive ? T.ink : T.inkLight,
-                            background: isActive ? T.parchment : 'transparent',
-                            transition: 'color 0.15s ease, background 0.15s ease',
+                            color: isActive ? '#a78bfa' : 'rgba(248,250,252,0.50)',
+                            background: isActive ? 'rgba(139,92,246,0.12)' : 'transparent',
+                            transition: 'all 0.2s',
                             display: 'flex', alignItems: 'center',
                         }}>
                             {label}
@@ -73,7 +76,7 @@ export default function Navbar() {
                                     left: '14px', right: '14px',
                                     height: '2px',
                                     borderRadius: '2px 2px 0 0',
-                                    background: T.sage,
+                                    background: 'linear-gradient(135deg,#8b5cf6,#ec4899)',
                                 }} />
                             )}
                         </Link>

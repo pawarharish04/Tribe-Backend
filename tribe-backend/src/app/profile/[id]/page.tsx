@@ -2,6 +2,8 @@
 
 import { useState, useCallback, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
+import CompatibilityBadge from '../../../components/ui/CompatibilityBadge';
+import InterestTag from '../../../components/ui/InterestTag';
 
 interface InterestDetail {
     interestId: string;
@@ -45,19 +47,138 @@ interface ProfilePayload {
     posts: PostDetail[];
 }
 
-function timeSince(dateString: string | null) {
-    if (!dateString) return 'unknown';
-    const seconds = Math.floor((Date.now() - new Date(dateString).getTime()) / 1000);
-
-    let interval = seconds / 86400;
-    if (interval > 1) return Math.floor(interval) + 'd ago';
-    interval = seconds / 3600;
-    if (interval > 1) return Math.floor(interval) + 'h ago';
-    interval = seconds / 60;
-    if (interval > 1) return Math.floor(interval) + 'm ago';
-    return 'Just now';
+function timeSince(d: string | null) {
+    if (!d) return null;
+    const ms = Date.now() - new Date(d).getTime();
+    const mins = Math.floor(ms / 60000);
+    if (mins < 1) return 'Just now';
+    if (mins < 60) return `${mins}m ago`;
+    const h = Math.floor(mins / 60);
+    if (h < 24) return `${h}h ago`;
+    return `${Math.floor(h / 24)}d ago`;
 }
 
+// ── Segmented Progress Bar ────────────────────────────────────────────────────
+function CompatBar({ label, value, max, color }: { label: string; value: number; max: number; color: string }) {
+    const pct = max > 0 ? Math.min(100, (value / max) * 100) : 0;
+    return (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <span style={{ fontSize: '12px', fontWeight: 500, color: 'rgba(248,250,252,0.55)', fontFamily: 'Inter,sans-serif' }}>{label}</span>
+                <span style={{ fontSize: '12px', fontWeight: 700, color, fontFamily: 'Inter,sans-serif' }}>{value}</span>
+            </div>
+            <div style={{ height: '6px', background: 'rgba(255,255,255,0.07)', borderRadius: '3px', overflow: 'hidden' }}>
+                <div style={{
+                    height: '100%', width: `${pct}%`,
+                    background: color,
+                    borderRadius: '3px',
+                    boxShadow: `0 0 8px ${color}80`,
+                    transition: 'width 1s cubic-bezier(0.16,1,0.3,1)',
+                }} />
+            </div>
+        </div>
+    );
+}
+
+// ── Creative Compatibility Arc ────────────────────────────────────────────────
+function CompatArc({ score }: { score: number }) {
+    const clamped = Math.min(100, Math.max(0, score));
+    const color = clamped >= 75 ? '#14b8a6' : clamped >= 50 ? '#8b5cf6' : '#ec4899';
+    const r = 44;
+    const circ = 2 * Math.PI * r;
+    const dash = (clamped / 100) * circ;
+
+    return (
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px' }}>
+            <div style={{ position: 'relative', width: '100px', height: '100px' }}>
+                <svg width="100" height="100" viewBox="0 0 100 100" style={{ transform: 'rotate(-90deg)' }}>
+                    {/* Track */}
+                    <circle cx="50" cy="50" r={r} fill="none" stroke="rgba(255,255,255,0.07)" strokeWidth="8" />
+                    {/* Arc */}
+                    <circle
+                        cx="50" cy="50" r={r} fill="none"
+                        stroke={color} strokeWidth="8"
+                        strokeDasharray={`${dash} ${circ}`}
+                        strokeLinecap="round"
+                        style={{ filter: `drop-shadow(0 0 6px ${color})`, transition: 'stroke-dasharray 1s cubic-bezier(0.16,1,0.3,1)' }}
+                    />
+                </svg>
+                <div style={{
+                    position: 'absolute', inset: 0,
+                    display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+                }}>
+                    <span style={{ fontSize: '20px', fontWeight: 800, fontFamily: 'Inter,sans-serif', color, lineHeight: 1 }}>{clamped}</span>
+                    <span style={{ fontSize: '9px', fontWeight: 600, color: 'rgba(248,250,252,0.40)', fontFamily: 'Inter,sans-serif', letterSpacing: '0.06em' }}>/ 100</span>
+                </div>
+            </div>
+            <span style={{ fontSize: '11px', fontWeight: 600, color: 'rgba(248,250,252,0.45)', fontFamily: 'Inter,sans-serif', letterSpacing: '0.04em', textTransform: 'uppercase' }}>
+                Creative Match
+            </span>
+        </div>
+    );
+}
+
+// ── Post Grid (with lock overlay) ────────────────────────────────────────────
+function PostCard({ post, revealed, idx }: { post: PostDetail; revealed: boolean; idx: number }) {
+    const locked = !revealed && idx >= 3;
+    return (
+        <div style={{
+            position: 'relative', aspectRatio: '1',
+            borderRadius: '12px', overflow: 'hidden',
+            background: 'rgba(255,255,255,0.04)',
+            border: '1px solid rgba(255,255,255,0.08)',
+        }}>
+            {post.media
+                ? post.media.type === 'video'
+                ? <video src={post.media.url} style={{ width: '100%', height: '100%', objectFit: 'cover' }} muted />
+                : <img src={post.media.url} alt={post.caption ?? ''} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                : <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '28px', background: 'linear-gradient(135deg,rgba(139,92,246,0.12),rgba(236,72,153,0.06))' }}>🎨</div>
+            }
+
+            {/* Interest label */}
+            <div style={{
+                position: 'absolute', top: '6px', left: '6px',
+                padding: '3px 8px', borderRadius: '999px',
+                background: 'rgba(0,0,0,0.55)', backdropFilter: 'blur(8px)',
+                fontSize: '9px', fontWeight: 600, color: '#a78bfa',
+                fontFamily: 'Inter,sans-serif', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: 'calc(100% - 12px)',
+            }}>
+                {post.interest.name}
+            </div>
+
+            {/* Lock overlay */}
+            {locked && (
+                <div style={{
+                    position: 'absolute', inset: 0,
+                    backdropFilter: 'blur(12px)',
+                    background: 'rgba(10,10,15,0.70)',
+                    display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '6px',
+                }}>
+                    <div style={{ fontSize: '20px' }}>🔒</div>
+                    <div style={{ fontSize: '10px', fontWeight: 600, color: 'rgba(248,250,252,0.50)', fontFamily: 'Inter,sans-serif', textAlign: 'center', padding: '0 8px' }}>
+                        Match to unlock
+                    </div>
+                </div>
+            )}
+
+            {/* Caption hover overlay */}
+            {!locked && post.caption && (
+                <div style={{
+                    position: 'absolute', bottom: 0, left: 0, right: 0,
+                    padding: '20px 10px 8px',
+                    background: 'linear-gradient(to top,rgba(0,0,0,0.75),transparent)',
+                    fontSize: '10px', color: 'rgba(248,250,252,0.80)',
+                    fontFamily: 'Inter,sans-serif', lineHeight: 1.4,
+                    display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden',
+                }}>
+                    {post.caption}
+                </div>
+            )}
+        </div>
+    );
+}
+
+// ── Main Page ─────────────────────────────────────────────────────────────────
 export default function ProfilePage() {
     const params = useParams();
     const router = useRouter();
@@ -65,36 +186,23 @@ export default function ProfilePage() {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState('');
     const [jwt, setJwt] = useState('');
-    // For interaction
     const [acting, setActing] = useState<'pass' | 'like' | null>(null);
 
-    // Initial load try session storage
     useEffect(() => {
-        const storedJwt = localStorage.getItem('tribe_jwt');
-        if (storedJwt) {
-            setJwt(storedJwt);
-        } else {
-            setError('Unauthorized. Please log in.');
-            router.push('/login');
-        }
+        const stored = localStorage.getItem('tribe_jwt');
+        if (stored) setJwt(stored);
+        else { router.push('/login'); }
     }, [router]);
 
     const fetchProfile = useCallback(async (token: string) => {
         if (!token) return;
-        setLoading(true);
-        setError('');
+        setLoading(true); setError('');
         try {
-            // Next 14 handles params as object, Next 15 as Promise, useParams hook handles it
             const id = Array.isArray(params?.id) ? params.id[0] : params?.id;
-            const res = await fetch(`/api/profile/${id}`, {
-                headers: { Authorization: `Bearer ${token}` }
-            });
+            const res = await fetch(`/api/profile/${id}`, { headers: { Authorization: `Bearer ${token}` } });
             const data = await res.json();
             if (!res.ok) throw new Error(data.error || 'Profile fetch failed');
             setProfile(data);
-
-            // save locally for easy refresh
-            localStorage.setItem('tribe_jwt', token);
         } catch (e: any) {
             setError(e.message);
         } finally {
@@ -102,13 +210,9 @@ export default function ProfilePage() {
         }
     }, [params]);
 
-    // Handle initial fetch when JWT is available
     useEffect(() => {
-        if (jwt && !profile && !error) {
-            fetchProfile(jwt);
-        }
+        if (jwt && !profile && !error) fetchProfile(jwt);
     }, [jwt, profile, error, fetchProfile]);
-
 
     const handleInteraction = async (action: 'LIKE' | 'PASS') => {
         if (!profile || !jwt) return;
@@ -117,258 +221,347 @@ export default function ProfilePage() {
             const res = await fetch('/api/interactions', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${jwt}` },
-                body: JSON.stringify({ targetId: profile.id, type: action }) // `type` not `action`
+                body: JSON.stringify({ targetId: profile.id, type: action }),
             });
             const data = await res.json();
-            if (data.matched) {
-                // It's a mutual match — route to matches so they see the reveal
-                router.push('/matches');
-            } else {
-                // Normal like/pass — return to feed
-                router.push('/feed');
-            }
+            if (data.matched) router.push('/matches');
+            else router.push('/feed');
         } catch {
             setActing(null);
         }
     };
 
+    // ── Loading state ──
+    if (loading) return (
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '100vh', background: '#0a0a0f', gap: '12px' }}>
+            <div style={{ width: '24px', height: '24px', border: '2.5px solid rgba(255,255,255,0.10)', borderTopColor: '#8b5cf6', borderRadius: '50%', animation: 'spin 0.7s linear infinite' }} />
+            <span style={{ fontSize: '14px', color: 'rgba(248,250,252,0.38)', fontFamily: 'Inter,sans-serif' }}>Loading profile…</span>
+        </div>
+    );
 
-    if (!jwt && !loading) {
-        return null;
-    }
+    // ── Error state ──
+    if (error || !profile) return (
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: '100vh', background: '#0a0a0f', gap: '16px', padding: '24px' }}>
+            <div style={{ fontSize: '36px' }}>⚠️</div>
+            <div style={{ fontSize: '15px', color: '#fca5a5', fontFamily: 'Inter,sans-serif', textAlign: 'center' }}>{error || 'Profile not found'}</div>
+            <button onClick={() => router.push('/feed')} style={{
+                padding: '11px 24px', borderRadius: '999px',
+                background: 'linear-gradient(135deg,#8b5cf6,#ec4899)',
+                color: '#fff', border: 'none', cursor: 'pointer',
+                fontSize: '14px', fontWeight: 600, fontFamily: 'Inter,sans-serif',
+            }}>
+                ← Back to Feed
+            </button>
+        </div>
+    );
 
-    if (loading) {
-        return (
-            <div style={{ background: 'var(--bg)', minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-muted)' }}>
-                Loading Profile...
-            </div>
-        );
-    }
-
-    if (error || !profile) {
-        return (
-            <div style={{ background: 'var(--bg)', minHeight: '100vh', padding: '40px', color: 'var(--red)' }}>
-                Error: {error || 'Profile not found'}
-                <br />
-                <button onClick={() => router.push('/feed')} style={{ marginTop: '20px', padding: '10px 20px', background: 'var(--bg-card)', color: '#fff' }}>Back to Feed</button>
-            </div>
-        );
-    }
-
-    const isOnline = profile.lastActiveAt && (Date.now() - new Date(profile.lastActiveAt).getTime() < 3600000); // 1 hr
+    const isOnline = profile.lastActiveAt && (Date.now() - new Date(profile.lastActiveAt).getTime() < 3600000);
+    const initials = profile.displayName.charAt(0).toUpperCase();
 
     return (
-        <div style={{ minHeight: '100vh', background: 'var(--bg)', display: 'flex', flexDirection: 'column' }}>
-            {/* Header Nav */}
+        <div style={{ minHeight: '100vh', background: '#0a0a0f', fontFamily: 'Inter, sans-serif', color: '#f8fafc', paddingBottom: '100px' }}>
+
+            {/* ── Sticky Header ── */}
             <header style={{
                 position: 'sticky', top: 0, zIndex: 100,
-                borderBottom: '1px solid var(--border)', background: 'rgba(12,12,14,0.9)',
-                backdropFilter: 'blur(16px)', padding: '0 24px', height: '56px',
                 display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                padding: '14px 20px',
+                background: 'rgba(10,10,15,0.88)',
+                backdropFilter: 'blur(20px)', WebkitBackdropFilter: 'blur(20px)',
+                borderBottom: '1px solid rgba(255,255,255,0.08)',
             }}>
-                <button onClick={() => router.back()} style={{ color: 'var(--text-secondary)', background: 'none', fontSize: '14px', fontWeight: 500, display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <button onClick={() => router.back()} style={{
+                    display: 'flex', alignItems: 'center', gap: '6px',
+                    color: 'rgba(248,250,252,0.55)', background: 'none', border: 'none',
+                    cursor: 'pointer', fontSize: '14px', fontWeight: 500, fontFamily: 'Inter,sans-serif',
+                }}>
                     ← Back
                 </button>
-                <span style={{ fontWeight: 600, fontSize: '15px' }}>{profile.displayName}</span>
-                <div style={{ width: '40px' }} /> {/* Spacer */}
+                <span style={{ fontSize: '15px', fontWeight: 700, color: '#f8fafc' }}>
+                    {profile.displayName}
+                </span>
+                <div style={{ width: '60px' }} />
             </header>
 
-            <main style={{ flex: 1, maxWidth: '640px', width: '100%', margin: '0 auto', padding: '24px 20px 80px', display: 'flex', flexDirection: 'column', gap: '24px' }}>
+            <main style={{ maxWidth: '640px', margin: '0 auto', padding: '24px 16px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
 
-                {/* 1. Identity Header */}
+                {/* ── Hero identity card ── */}
                 <div style={{
-                    textAlign: 'center', padding: '30px 20px', background: 'var(--bg-card)',
-                    borderRadius: 'var(--radius)', border: '1px solid var(--border)', position: 'relative', overflow: 'hidden'
+                    background: profile.revealed
+                        ? 'linear-gradient(135deg,rgba(20,184,166,0.12),rgba(139,92,246,0.08))'
+                        : 'rgba(255,255,255,0.04)',
+                    border: `1px solid ${profile.revealed ? 'rgba(20,184,166,0.25)' : 'rgba(255,255,255,0.08)'}`,
+                    borderRadius: '20px', padding: '28px',
+                    display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '16px',
+                    textAlign: 'center', position: 'relative', overflow: 'hidden',
+                    transition: 'all 0.6s ease',
                 }}>
-                    {!profile.revealed && (
-                        <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: '3px', background: 'linear-gradient(90deg, #555, #333)' }} />
-                    )}
-                    {profile.revealed && (
-                        <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: '3px', background: 'linear-gradient(90deg, #4ade80, #22d3ee)', boxShadow: '0 0 12px rgba(74,222,128,0.5)' }} />
-                    )}
+                    {/* Top gradient line */}
+                    <div style={{
+                        position: 'absolute', top: 0, left: 0, right: 0, height: '2px',
+                        background: profile.revealed
+                            ? 'linear-gradient(90deg,#14b8a6,#8b5cf6,#ec4899)'
+                            : 'linear-gradient(90deg,rgba(139,92,246,0.4),rgba(236,72,153,0.4))',
+                        boxShadow: profile.revealed ? '0 0 12px rgba(20,184,166,0.5)' : 'none',
+                    }} />
 
-                    <div style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: '80px', height: '80px', borderRadius: '50%', background: 'var(--border)', color: '#fff', fontSize: '32px', fontWeight: 600, marginBottom: '16px' }}>
-                        {profile.displayName.charAt(0)}
-                    </div>
-
-                    <h1 style={{ fontSize: '24px', fontWeight: 700, color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}>
-                        {profile.displayName}
-                        {!profile.revealed && <span style={{ filter: 'blur(6px)', userSelect: 'none', marginLeft: '4px', opacity: 0.5, fontSize: '24px' }}>████</span>}
-                        {isOnline && <span style={{ width: '10px', height: '10px', borderRadius: '50%', background: 'var(--gold)' }} />}
-                    </h1>
-
-                    <div style={{ color: 'var(--text-secondary)', fontSize: '14px', marginTop: '6px' }}>
-                        {profile.distanceHidden
-                            ? 'Distance hidden'
-                            : profile.distanceKm !== null
-                                ? `${profile.distanceKm}${profile.exactDistance ? '.0' : ''} km away`
-                                : 'Unknown location'}
-                    </div>
-                    {profile.lastActiveAt && (
-                        <div style={{ color: 'var(--text-muted)', fontSize: '12px', marginTop: '2px' }}>
-                            Active {timeSince(profile.lastActiveAt)}
-                        </div>
-                    )}
-
-                    {profile.revealed && (
-                        <div style={{ display: 'inline-block', marginTop: '16px', padding: '4px 12px', background: 'var(--green-soft)', color: 'var(--green)', borderRadius: '20px', fontSize: '12px', fontWeight: 600, border: '1px solid rgba(74,222,128,0.3)' }}>
-                            🔓 Mutual Match
-                        </div>
-                    )}
-                </div>
-
-                {/* 2. Shared Compatibility Section */}
-                <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 'var(--radius)', padding: '20px' }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
-                        <div style={{ fontSize: '14px', fontWeight: 600, color: 'var(--text-primary)' }}>Compatibility Breakdown</div>
-                        <div style={{ fontSize: '24px', fontWeight: 700, color: profile.score >= 70 ? 'var(--green)' : profile.score >= 45 ? 'var(--gold)' : 'var(--text-secondary)' }}>
-                            {Math.round(profile.score)}%
+                    {/* Avatar circle */}
+                    <div style={{
+                        width: '88px', height: '88px', borderRadius: '50%',
+                        background: 'linear-gradient(135deg,#8b5cf6,#ec4899)',
+                        padding: '3px',
+                        boxShadow: profile.revealed ? '0 0 32px rgba(20,184,166,0.40)' : '0 0 20px rgba(139,92,246,0.30)',
+                        transition: 'box-shadow 0.6s ease',
+                        flexShrink: 0,
+                    }}>
+                        <div style={{
+                            width: '100%', height: '100%', borderRadius: '50%',
+                            background: '#13131e',
+                            display: 'flex', alignItems: 'center', justifyContent: 'center',
+                            fontSize: '30px', fontWeight: 800, color: '#a78bfa',
+                            filter: profile.revealed ? 'none' : 'blur(0px)',
+                        }}>
+                            {initials}
                         </div>
                     </div>
 
-                    {/* Visual Meter */}
-                    <div style={{ width: '100%', height: '8px', background: 'var(--border)', borderRadius: '4px', overflow: 'hidden', marginBottom: '16px' }}>
-                        <div style={{ width: `${Math.min(profile.score, 100)}%`, height: '100%', background: profile.score >= 70 ? 'var(--green)' : profile.score >= 45 ? 'var(--gold)' : 'var(--text-secondary)', transition: 'width 1s ease-out' }} />
+                    {/* Name */}
+                    <div>
+                        <h1 style={{
+                            fontSize: '24px', fontWeight: 800, letterSpacing: '-0.02em',
+                            color: '#f8fafc', margin: '0 0 6px',
+                            display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', flexWrap: 'wrap',
+                        }}>
+                            {profile.displayName}
+                            {!profile.revealed && (
+                                <span style={{ filter: 'blur(5px)', userSelect: 'none', opacity: 0.4, fontSize: '22px' }}>████</span>
+                            )}
+                            {isOnline && (
+                                <span style={{ width: '10px', height: '10px', borderRadius: '50%', background: '#10b981', boxShadow: '0 0 8px #10b981', flexShrink: 0, display: 'inline-block' }} />
+                            )}
+                        </h1>
+
+                        {/* Distance + activity */}
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px', flexWrap: 'wrap' }}>
+                            {!profile.distanceHidden && profile.distanceKm !== null && (
+                                <span style={{ fontSize: '13px', color: 'rgba(248,250,252,0.50)', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                                    📍 {profile.exactDistance ? profile.distanceKm?.toFixed(1) : `~${profile.distanceKm}`} km away
+                                </span>
+                            )}
+                            {profile.lastActiveAt && (
+                                <span style={{ fontSize: '12px', color: 'rgba(248,250,252,0.38)' }}>
+                                    Active {timeSince(profile.lastActiveAt)}
+                                </span>
+                            )}
+                        </div>
                     </div>
 
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '8px', textAlign: 'center' }}>
-                        <div style={{ background: 'rgba(255,255,255,0.03)', padding: '10px', borderRadius: '8px' }}>
-                            <div style={{ fontSize: '16px', fontWeight: 600, color: 'var(--accent)' }}>{profile.compatibility.exactMatches}</div>
-                            <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '2px' }}>Exact Matches</div>
-                        </div>
-                        <div style={{ background: 'rgba(255,255,255,0.03)', padding: '10px', borderRadius: '8px' }}>
-                            <div style={{ fontSize: '16px', fontWeight: 600, color: 'var(--text-primary)' }}>{profile.compatibility.parentMatches}</div>
-                            <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '2px' }}>Related Interests</div>
-                        </div>
-                        <div style={{ background: 'rgba(255,255,255,0.03)', padding: '10px', borderRadius: '8px' }}>
-                            <div style={{ fontSize: '16px', fontWeight: 600, color: 'var(--gold)' }}>+{Math.round(profile.compatibility.momentumBoost)}</div>
-                            <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '2px' }}>Momentum Boost</div>
-                        </div>
-                    </div>
-                </div>
-
-                {/* 2.5 Creative Compatibility Engine */}
-                {profile.creativeCompatibility && (
-                    <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 'var(--radius)', padding: '24px' }}>
-                        <div style={{ fontSize: '12px', textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--text-muted)', marginBottom: '4px', fontWeight: 600 }}>
-                            Creative Compatibility
-                        </div>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: '16px' }}>
-                            <div style={{ fontSize: '20px', fontWeight: 700, color: 'var(--text-primary)' }}>
-                                You ↔ {profile.displayName}
-                            </div>
-                            <div style={{ fontSize: '24px', fontWeight: 700, color: profile.creativeCompatibility.score >= 70 ? 'var(--green)' : profile.creativeCompatibility.score >= 40 ? 'var(--gold)' : 'var(--text-secondary)' }}>
-                                {profile.creativeCompatibility.score}%
-                            </div>
-                        </div>
-
-                        {profile.creativeCompatibility.sharedInterests.length > 0 ? (
-                            <div>
-                                <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginBottom: '8px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Shared Interests</div>
-                                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
-                                    {profile.creativeCompatibility.sharedInterests.map(interest => (
-                                        <span key={interest} style={{ fontSize: '12px', padding: '6px 12px', background: 'var(--accent-soft)', color: 'var(--accent)', borderRadius: '16px', fontWeight: 500 }}>
-                                            {interest}
-                                        </span>
-                                    ))}
-                                </div>
-                            </div>
-                        ) : (
-                            <div style={{ fontSize: '13px', color: 'var(--text-secondary)', fontStyle: 'italic' }}>
-                                No shared interests yet.
-                            </div>
+                    {/* Status badges row */}
+                    <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', justifyContent: 'center' }}>
+                        <CompatibilityBadge score={Math.round(profile.score)} size="md" />
+                        {profile.revealed && (
+                            <span style={{
+                                padding: '5px 12px', borderRadius: '999px', fontSize: '12px', fontWeight: 600,
+                                background: 'rgba(20,184,166,0.15)', border: '1px solid rgba(20,184,166,0.35)',
+                                color: '#2dd4bf', display: 'flex', alignItems: 'center', gap: '5px',
+                            }}>
+                                🔓 Mutually Matched
+                            </span>
+                        )}
+                        {!profile.revealed && (
+                            <span style={{
+                                padding: '5px 12px', borderRadius: '999px', fontSize: '12px', fontWeight: 500,
+                                background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.10)',
+                                color: 'rgba(248,250,252,0.45)',
+                            }}>
+                                🔒 Identity Hidden
+                            </span>
                         )}
                     </div>
-                )}
-
-                {/* 3. Interest Breakdown */}
-                <div>
-                    <div style={{ fontSize: '12px', textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--text-muted)', marginBottom: '12px', fontWeight: 600 }}>
-                        Analyzed Interests ({profile.interests.length})
-                    </div>
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                        {profile.interests.map(ci => (
-                            <div key={ci.interestId} style={{
-                                display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-                                padding: '12px 16px', background: 'var(--bg-card)', border: `1px solid ${ci.isExactMatch ? 'rgba(124,106,247,0.3)' : 'var(--border)'}`,
-                                borderRadius: '10px'
-                            }}>
-                                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                                    <div style={{ fontSize: '14px', fontWeight: ci.isExactMatch ? 600 : 500, color: ci.isExactMatch ? 'var(--accent)' : 'var(--text-primary)' }}>
-                                        {ci.name}
-                                    </div>
-                                    {ci.isExactMatch && <span style={{ fontSize: '10px', padding: '2px 6px', background: 'var(--accent-soft)', color: 'var(--accent)', borderRadius: '12px' }}>Shared</span>}
-                                    {ci.usageCount < 10 && <span style={{ fontSize: '10px', padding: '2px 6px', background: 'rgba(245, 158, 11, 0.1)', color: 'var(--gold)', borderRadius: '12px', border: '1px solid rgba(245,158,11,0.2)' }}>Rare</span>}
-                                </div>
-                                <div style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>
-                                    {ci.postCount > 0 ? `${ci.postCount} Posts` : 'No Posts'}
-                                </div>
-                            </div>
-                        ))}
-                    </div>
                 </div>
 
-                {/* 4. Expression Wall (Posts) */}
-                {profile.posts.length > 0 && (
-                    <div>
-                        <div style={{ fontSize: '12px', textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--text-muted)', marginBottom: '12px', fontWeight: 600 }}>
-                            expression wall {!profile.revealed && `(Locked Preview)`}
-                        </div>
-                        <div style={{ position: 'relative' }}>
-                            {!profile.revealed && (
-                                <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, height: '80px', background: 'linear-gradient(transparent, var(--bg))', zIndex: 2 }} />
-                            )}
-                            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '12px' }}>
-                                {profile.posts.map((post, i) => (
-                                    <div key={i} style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 'var(--radius-sm)', padding: '16px' }}>
-                                        <div style={{ fontSize: '11px', color: 'var(--accent)', fontWeight: 600, marginBottom: '6px' }}>
-                                            {post.interest.name}
-                                        </div>
-                                        {post.caption && (
-                                            <div style={{ fontSize: '14px', color: 'var(--text-primary)', lineHeight: 1.5, marginBottom: '8px' }}>
-                                                "{post.caption}"
-                                            </div>
-                                        )}
-                                        {post.media && (
-                                            <div style={{ height: '120px', background: 'var(--border)', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-muted)', fontSize: '12px' }}>
-                                                [{post.media.type === 'video' ? '🎥 Video' : '🖼️ Image'}]
-                                            </div>
-                                        )}
-                                    </div>
+                {/* ── Compatibility Breakdown ── */}
+                <div style={{
+                    background: 'rgba(255,255,255,0.04)',
+                    border: '1px solid rgba(255,255,255,0.08)',
+                    borderRadius: '20px', padding: '24px',
+                    display: 'flex', flexDirection: 'column', gap: '20px',
+                }}>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                        <h2 style={{ fontSize: '14px', fontWeight: 700, letterSpacing: '-0.01em', color: '#f8fafc', margin: 0 }}>Compatibility</h2>
+                        {profile.creativeCompatibility && (
+                            <CompatArc score={profile.creativeCompatibility.score} />
+                        )}
+                    </div>
+
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                        <CompatBar label="Interest Score" value={Math.round(profile.compatibility.baseInterestScore)} max={100} color="#8b5cf6" />
+                        <CompatBar label="Exact Matches" value={profile.compatibility.exactMatches} max={Math.max(profile.compatibility.exactMatches, 5)} color="#ec4899" />
+                        <CompatBar label="Related Interests" value={profile.compatibility.parentMatches} max={Math.max(profile.compatibility.parentMatches, 8)} color="#14b8a6" />
+                        <CompatBar label="Category Overlap" value={profile.compatibility.categoryMatches} max={Math.max(profile.compatibility.categoryMatches, 10)} color="#a78bfa" />
+                        {profile.compatibility.momentumBoost > 0 && (
+                            <CompatBar label="Momentum Boost" value={Math.round(profile.compatibility.momentumBoost)} max={20} color="#f59e0b" />
+                        )}
+                    </div>
+
+                    {/* Shared interests */}
+                    {profile.creativeCompatibility && profile.creativeCompatibility.sharedInterests.length > 0 && (
+                        <div>
+                            <div style={{ fontSize: '11px', fontWeight: 600, color: 'rgba(248,250,252,0.38)', letterSpacing: '0.06em', textTransform: 'uppercase', marginBottom: '10px' }}>
+                                Shared Interests
+                            </div>
+                            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
+                                {profile.creativeCompatibility.sharedInterests.map(name => (
+                                    <InterestTag key={name} name={name} isExactMatch size="sm" />
                                 ))}
                             </div>
                         </div>
+                    )}
+                </div>
+
+                {/* ── Interests ── */}
+                {profile.interests.length > 0 && (
+                    <div style={{
+                        background: 'rgba(255,255,255,0.04)',
+                        border: '1px solid rgba(255,255,255,0.08)',
+                        borderRadius: '20px', padding: '24px',
+                    }}>
+                        <h2 style={{ fontSize: '14px', fontWeight: 700, color: '#f8fafc', margin: '0 0 16px', letterSpacing: '-0.01em' }}>
+                            Interests
+                            <span style={{ marginLeft: '8px', fontSize: '12px', fontWeight: 400, color: 'rgba(248,250,252,0.35)' }}>
+                                {profile.interests.length}
+                            </span>
+                        </h2>
+                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
+                            {profile.interests.map(ci => (
+                                <div key={ci.interestId} style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                                    <InterestTag
+                                        name={ci.name}
+                                        isExactMatch={ci.isExactMatch}
+                                        isParentMatch={ci.isParentMatch}
+                                        size="md"
+                                    />
+                                    {ci.usageCount < 10 && (
+                                        <span style={{
+                                            fontSize: '9px', padding: '2px 6px', borderRadius: '999px',
+                                            background: 'rgba(245,158,11,0.12)', border: '1px solid rgba(245,158,11,0.25)',
+                                            color: '#f59e0b', fontWeight: 600, fontFamily: 'Inter,sans-serif',
+                                        }}>RARE</span>
+                                    )}
+                                </div>
+                            ))}
+                        </div>
+
+                        {/* Legend */}
+                        <div style={{ marginTop: '16px', display: 'flex', gap: '16px', flexWrap: 'wrap' }}>
+                            {[
+                                { color: 'rgba(139,92,246,0.5)', text: 'Exact match' },
+                                { color: 'rgba(20,184,166,0.5)', text: 'Related' },
+                                { color: 'rgba(255,255,255,0.15)', text: 'Other' },
+                            ].map(({ color, text }) => (
+                                <div key={text} style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
+                                    <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: color }} />
+                                    <span style={{ fontSize: '10px', color: 'rgba(248,250,252,0.35)', fontFamily: 'Inter,sans-serif' }}>{text}</span>
+                                </div>
+                            ))}
+                        </div>
                     </div>
                 )}
 
-                {/* 5. Interaction Footer */}
-                {!profile.revealed && (
-                    <div style={{
-                        position: 'fixed', bottom: 0, left: 0, right: 0,
-                        background: 'rgba(12,12,14,0.95)', borderTop: '1px solid var(--border)',
-                        padding: '16px 24px 32px', display: 'flex', gap: '12px', zIndex: 100,
-                        backdropFilter: 'blur(16px)'
-                    }}>
-                        <div style={{ maxWidth: '640px', width: '100%', margin: '0 auto', display: 'flex', gap: '12px' }}>
-                            <button
-                                onClick={() => handleInteraction('PASS')}
-                                disabled={!!acting}
-                                style={{ flex: 1, padding: '14px', borderRadius: '12px', background: 'rgba(248,113,113,0.1)', color: 'var(--red)', border: '1px solid rgba(248,113,113,0.2)', fontSize: '15px', fontWeight: 600 }}
-                            >
-                                Pass
-                            </button>
-                            <button
-                                onClick={() => handleInteraction('LIKE')}
-                                disabled={!!acting}
-                                style={{ flex: 2, padding: '14px', borderRadius: '12px', background: 'var(--accent)', color: '#fff', fontSize: '15px', fontWeight: 600 }}
-                            >
-                                {acting === 'like' ? 'Liking...' : 'Like Profile'}
-                            </button>
+                {/* ── Creative Works (Posts) ── */}
+                {profile.posts.length > 0 && (
+                    <div>
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '14px' }}>
+                            <h2 style={{ fontSize: '14px', fontWeight: 700, color: '#f8fafc', margin: 0, letterSpacing: '-0.01em' }}>
+                                Creative Works
+                                <span style={{ marginLeft: '8px', fontSize: '12px', fontWeight: 400, color: 'rgba(248,250,252,0.35)' }}>
+                                    {profile.revealed ? profile.posts.length : `${Math.min(3, profile.posts.length)} of ${profile.posts.length}`}
+                                </span>
+                            </h2>
+                            {!profile.revealed && (
+                                <span style={{ fontSize: '11px', fontWeight: 500, color: 'rgba(248,250,252,0.35)', fontFamily: 'Inter,sans-serif' }}>
+                                    Match to unlock all
+                                </span>
+                            )}
+                        </div>
+                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: '8px' }}>
+                            {profile.posts.map((post, idx) => (
+                                <PostCard key={post.id} post={post} revealed={profile.revealed} idx={idx} />
+                            ))}
                         </div>
                     </div>
                 )}
 
             </main>
+
+            {/* ── Sticky action bar (only when NOT matched) ── */}
+            {!profile.revealed && (
+                <div style={{
+                    position: 'fixed', bottom: '72px', left: 0, right: 0, zIndex: 50,
+                    background: 'rgba(10,10,15,0.90)',
+                    backdropFilter: 'blur(20px)', WebkitBackdropFilter: 'blur(20px)',
+                    borderTop: '1px solid rgba(255,255,255,0.08)',
+                    padding: '14px 20px',
+                }}>
+                    <div style={{ maxWidth: '640px', margin: '0 auto', display: 'flex', gap: '12px' }}>
+                        <button
+                            onClick={() => handleInteraction('PASS')}
+                            disabled={!!acting}
+                            style={{
+                                flex: 1, padding: '13px', borderRadius: '12px',
+                                background: 'rgba(239,68,68,0.10)', border: '1px solid rgba(239,68,68,0.25)',
+                                color: '#f87171', fontSize: '14px', fontWeight: 600, fontFamily: 'Inter,sans-serif',
+                                cursor: acting ? 'not-allowed' : 'pointer', transition: 'all 0.2s',
+                            }}
+                            onMouseEnter={e => { if (!acting) (e.currentTarget).style.background = 'rgba(239,68,68,0.18)'; }}
+                            onMouseLeave={e => { (e.currentTarget).style.background = 'rgba(239,68,68,0.10)'; }}
+                        >
+                            ✖ Pass
+                        </button>
+                        <button
+                            onClick={() => handleInteraction('LIKE')}
+                            disabled={!!acting}
+                            style={{
+                                flex: 2, padding: '13px', borderRadius: '12px',
+                                background: acting === 'like' ? 'rgba(139,92,246,0.5)' : 'linear-gradient(135deg,#8b5cf6,#ec4899)',
+                                color: '#fff', fontSize: '14px', fontWeight: 700, fontFamily: 'Inter,sans-serif',
+                                border: 'none', cursor: acting ? 'not-allowed' : 'pointer',
+                                boxShadow: acting ? 'none' : '0 6px 20px rgba(139,92,246,0.35)',
+                                transition: 'all 0.2s', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px',
+                            }}
+                        >
+                            {acting === 'like' ? (
+                                <>
+                                    <span style={{ width: '14px', height: '14px', border: '2px solid rgba(255,255,255,0.3)', borderTopColor: '#fff', borderRadius: '50%', animation: 'spin 0.7s linear infinite', display: 'inline-block' }} />
+                                    Liking…
+                                </>
+                            ) : '❤ Like Profile'}
+                        </button>
+                    </div>
+                </div>
+            )}
+
+            {/* Matched: show message button instead */}
+            {profile.revealed && (
+                <div style={{
+                    position: 'fixed', bottom: '72px', left: 0, right: 0, zIndex: 50,
+                    padding: '14px 20px',
+                    background: 'rgba(10,10,15,0.90)',
+                    backdropFilter: 'blur(20px)', WebkitBackdropFilter: 'blur(20px)',
+                    borderTop: '1px solid rgba(20,184,166,0.20)',
+                }}>
+                    <div style={{ maxWidth: '640px', margin: '0 auto' }}>
+                        <a href="/matches" style={{
+                            display: 'block', padding: '13px', borderRadius: '12px', textAlign: 'center',
+                            background: 'linear-gradient(135deg,#14b8a6,#8b5cf6)',
+                            color: '#fff', fontSize: '14px', fontWeight: 700, fontFamily: 'Inter,sans-serif',
+                            textDecoration: 'none', boxShadow: '0 6px 20px rgba(20,184,166,0.30)',
+                        }}>
+                            💬 Send a Message
+                        </a>
+                    </div>
+                </div>
+            )}
         </div>
     );
 }
