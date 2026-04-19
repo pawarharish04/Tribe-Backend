@@ -1,6 +1,17 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '../../../lib/prisma';
 import { getUserIdFromRequest } from '../../../lib/auth';
+import { parseBody, z } from '../../../lib/validate';
+
+const ReportSchema = z.object({
+    reportedId:    z.string().uuid({ message: 'reportedId must be a valid UUID.' }),
+    category:      z.enum(
+        ['SPAM', 'FAKE_PROFILE', 'INAPPROPRIATE_CONTENT', 'HARASSMENT', 'OTHER'],
+        { errorMap: () => ({ message: 'Invalid category. Allowed: SPAM, FAKE_PROFILE, INAPPROPRIATE_CONTENT, HARASSMENT, OTHER.' }) },
+    ),
+    description:   z.string().max(1000, { message: 'Description must be 1000 characters or fewer.' }).optional(),
+    screenshotUrl: z.string().url({ message: 'screenshotUrl must be a valid URL.' }).optional(),
+});
 
 export async function POST(req: Request) {
     try {
@@ -9,30 +20,22 @@ export async function POST(req: Request) {
             return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
         }
 
-        const body = await req.json();
-        const { targetId, category, description, screenshotUrl } = body;
+        const parsed = await parseBody(req, ReportSchema);
+        if (!parsed.ok) return parsed.response;
+        const { reportedId, category, description, screenshotUrl } = parsed.data;
 
-        if (!targetId || !category) {
-            return NextResponse.json({ error: 'Target ID and Category required.' }, { status: 400 });
-        }
-
-        const validCategories = ['SPAM', 'FAKE_PROFILE', 'INAPPROPRIATE_CONTENT', 'HARASSMENT', 'OTHER'];
-        if (!validCategories.includes(category)) {
-            return NextResponse.json({ error: 'Invalid Category.' }, { status: 400 });
-        }
-
-        if (userId === targetId) {
+        if (userId === reportedId) {
             return NextResponse.json({ error: 'Cannot report yourself.' }, { status: 400 });
         }
 
         const report = await prisma.report.create({
             data: {
-                reporterId: userId,
-                reportedId: targetId,
-                category: category as any,
-                description: description || null,
-                screenshotUrl: screenshotUrl || null,
-                status: 'PENDING'
+                reporterId:    userId,
+                reportedId,
+                category:      category as any,
+                description:   description ?? null,
+                screenshotUrl: screenshotUrl ?? null,
+                status:        'PENDING',
             }
         });
 

@@ -3,17 +3,18 @@ import bcrypt from 'bcrypt';
 import { prisma } from '../../../../lib/prisma';
 import { signToken } from '../../../../lib/auth';
 import { attachAuthCookie } from '../../../../lib/cookie';
+import { parseBody, z } from '../../../../lib/validate';
+
+const LoginSchema = z.object({
+    email:    z.string().email({ message: 'Must be a valid email address.' }),
+    password: z.string().min(1, { message: 'Password is required.' }),
+});
 
 export async function POST(req: Request) {
     try {
-        const { email, password } = await req.json();
-
-        if (!email || !password) {
-            return NextResponse.json(
-                { error: 'Email and password are required' },
-                { status: 400 }
-            );
-        }
+        const parsed = await parseBody(req, LoginSchema);
+        if (!parsed.ok) return parsed.response;
+        const { email, password } = parsed.data;
 
         const user = await prisma.user.findUnique({ where: { email } });
 

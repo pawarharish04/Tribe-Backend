@@ -3,24 +3,24 @@ import bcrypt from 'bcrypt';
 import { prisma } from '../../../../lib/prisma';
 import { signToken } from '../../../../lib/auth';
 import { attachAuthCookie } from '../../../../lib/cookie';
+import { parseBody, z } from '../../../../lib/validate';
+
+const RegisterSchema = z.object({
+    email:     z.string().email({ message: 'Must be a valid email address.' }),
+    password:  z.string().min(8, { message: 'Password must be at least 8 characters.' }),
+    name:      z.string().optional(),
+    latitude:  z.number().optional(),
+    longitude: z.number().optional(),
+    interests: z
+        .array(z.string())
+        .min(3, { message: 'Please select at least 3 interests to build your network.' }),
+});
 
 export async function POST(req: Request) {
     try {
-        const { email, password, name, latitude, longitude, interests } = await req.json();
-
-        if (!interests || !Array.isArray(interests) || interests.length < 3) {
-            return NextResponse.json(
-                { error: 'Please select at least 3 interests to build your network.' },
-                { status: 400 }
-            );
-        }
-
-        if (!email || !password) {
-            return NextResponse.json(
-                { error: 'Email and password are required' },
-                { status: 400 }
-            );
-        }
+        const parsed = await parseBody(req, RegisterSchema);
+        if (!parsed.ok) return parsed.response;
+        const { email, password, name, latitude, longitude, interests } = parsed.data;
 
         const existingUser = await prisma.user.findUnique({ where: { email } });
         if (existingUser) {

@@ -4,6 +4,13 @@ import { getUserIdFromRequest } from '../../../lib/auth';
 import { detectLabels } from '../../../services/rekognitionService';
 import { promises as fs } from 'fs';
 import path from 'path';
+import { parseBody, z } from '../../../lib/validate';
+
+const InterestPostSchema = z.object({
+    interestId: z.string().uuid({ message: 'interestId must be a valid UUID.' }),
+    caption:    z.string().max(500, { message: 'Caption must be 500 characters or fewer.' }).optional(),
+    mediaId:    z.string().uuid({ message: 'mediaId must be a valid UUID.' }).optional(),
+});
 
 export async function POST(req: Request) {
     try {
@@ -12,12 +19,9 @@ export async function POST(req: Request) {
             return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
         }
 
-        const body = await req.json();
-        const { interestId, mediaId, caption } = body;
-
-        if (!interestId) {
-            return NextResponse.json({ error: 'interestId is required' }, { status: 400 });
-        }
+        const parsed = await parseBody(req, InterestPostSchema);
+        if (!parsed.ok) return parsed.response;
+        const { interestId, mediaId, caption } = parsed.data;
 
         // Enforce: Max 5 posts per interest per user constraint
         const postCount = await prisma.interestPost.count({

@@ -2,6 +2,14 @@ import { NextResponse } from 'next/server';
 import { prisma } from '../../../lib/prisma';
 import { getUserIdFromRequest } from '../../../lib/auth';
 import { trackUserInteraction } from '../../../services/personalizeService';
+import { parseBody, z } from '../../../lib/validate';
+
+const InteractionSchema = z.object({
+    targetId: z.string().uuid({ message: 'targetId must be a valid UUID.' }),
+    type:     z.enum(['LIKE', 'PASS', 'SUPERLIKE'], {
+        errorMap: () => ({ message: "type must be one of: LIKE, PASS, SUPERLIKE." }),
+    }),
+});
 
 // Simple In-Memory Rate Limiter Map
 // Tracks { userId: { count, timestamp } }
@@ -41,16 +49,9 @@ export async function POST(req: Request) {
         }
         // -----------------------------
 
-        const body = await req.json();
-        const { targetId, type } = body;
-
-        if (!targetId || !type) {
-            return NextResponse.json({ error: 'Target ID and Interaction Type required.' }, { status: 400 });
-        }
-
-        if (!["LIKE", "PASS", "SUPERLIKE"].includes(type)) {
-            return NextResponse.json({ error: 'Invalid Interaction Type.' }, { status: 400 });
-        }
+        const parsed = await parseBody(req, InteractionSchema);
+        if (!parsed.ok) return parsed.response;
+        const { targetId, type } = parsed.data;
 
         if (userId === targetId) {
             return NextResponse.json({ error: 'Cannot interact with yourself.' }, { status: 400 });
