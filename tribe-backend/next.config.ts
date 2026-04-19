@@ -19,6 +19,9 @@ const allowHeaders = 'Content-Type,Authorization';
 
 const nextConfig: NextConfig = {
     reactCompiler: true,
+    // Required for the Docker multi-stage build runner stage.
+    // Produces .next/standalone — a self-contained server.js + minimal node_modules.
+    output: 'standalone',
 
     async headers() {
         return [

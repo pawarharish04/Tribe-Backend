@@ -1,0 +1,66 @@
+services:
+
+  # ─── Redis ──────────────────────────────────────────────────────────────────
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    command: redis-server --save 60 1 --loglevel warning
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 5s
+
+  # ─── Next.js app ────────────────────────────────────────────────────────────
+  nextjs:
+    build:
+      context: ./tribe-backend
+      dockerfile: Dockerfile
+      args:
+        CORS_ORIGIN: ${CORS_ORIGIN}
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    env_file:
+      - ./tribe-backend/.env
+    environment:
+      NODE_ENV: production
+    depends_on:
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:3000/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 20s
+
+  # ─── Socket.IO server ───────────────────────────────────────────────────────
+  socketio:
+    build:
+      context: ./tribe-backend
+      dockerfile: Dockerfile.socket
+    restart: unless-stopped
+    ports:
+      - "4000:4000"
+    env_file:
+      - ./tribe-backend/.env
+    environment:
+      NODE_ENV: production
+    depends_on:
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:4000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 15s
+
+volumes:
+  redis_data:

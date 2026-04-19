@@ -1,0 +1,34 @@
+# ─── Socket.IO server ─────────────────────────────────────────────────────────
+# Uses tsx to run TypeScript directly — no separate build step required.
+# Keep this image small: only production deps + the source files needed by
+# src/socket/server.ts and its imports (lib/, services/, prisma schema).
+FROM node:20-alpine
+
+RUN apk add --no-cache libc6-compat python3 make g++
+
+WORKDIR /app
+
+# Install ALL dependencies (tsx is a devDep)
+COPY package.json package-lock.json ./
+RUN npm ci
+
+# Copy Prisma schema so the client can be generated / resolved
+COPY prisma ./prisma
+
+# Copy only the source directories required by the socket server
+COPY src/socket   ./src/socket
+COPY src/lib      ./src/lib
+COPY src/services ./src/services
+COPY tsconfig.json ./
+
+# Non-root user
+RUN addgroup --system --gid 1001 nodejs && \
+    adduser  --system --uid 1001 socketuser
+USER socketuser
+
+EXPOSE 4000
+
+HEALTHCHECK --interval=30s --timeout=10s --start-period=10s --retries=3 \
+    CMD wget -qO- http://localhost:4000/health || exit 1
+
+CMD ["npx", "tsx", "src/socket/server.ts"]
