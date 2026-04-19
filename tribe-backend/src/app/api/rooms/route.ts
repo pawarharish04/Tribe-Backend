@@ -5,7 +5,7 @@ import { getUserIdFromRequest } from '../../../lib/auth';
 // GET /api/rooms — list all interest rooms (with membership status)
 export async function GET(req: Request) {
     try {
-        const userId = getUserIdFromRequest(req);
+        const userId = await getUserIdFromRequest(req);
         if (!userId) {
             return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
         }

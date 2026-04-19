@@ -6,7 +6,7 @@ import { calculateCompatibility } from '../../../../services/compatibilityEngine
 
 export async function GET(req: Request, context: any) {
     try {
-        const userId = getUserIdFromRequest(req);
+        const userId = await getUserIdFromRequest(req);
         if (!userId) {
             return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
         }

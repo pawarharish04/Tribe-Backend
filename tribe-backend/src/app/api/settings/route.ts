@@ -4,7 +4,7 @@ import { getUserIdFromRequest } from '../../../lib/auth';
 import bcrypt from 'bcrypt';
 
 export async function GET(req: Request) {
-    const userId = getUserIdFromRequest(req);
+    const userId = await getUserIdFromRequest(req);
     if (!userId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
     const user = await prisma.user.findUnique({
@@ -21,7 +21,7 @@ export async function GET(req: Request) {
 }
 
 export async function PATCH(req: Request) {
-    const userId = getUserIdFromRequest(req);
+    const userId = await getUserIdFromRequest(req);
     if (!userId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
     const body = await req.json();

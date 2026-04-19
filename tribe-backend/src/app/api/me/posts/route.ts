@@ -6,7 +6,7 @@ import { getUserIdFromRequest } from '../../../../lib/auth';
 // Body: { interestId, caption?, mediaUrl?, mediaType? }
 
 export async function POST(req: Request) {
-    const userId = getUserIdFromRequest(req);
+    const userId = await getUserIdFromRequest(req);
     if (!userId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
     const body = await req.json();
@@ -56,7 +56,7 @@ export async function POST(req: Request) {
 // ─── DELETE /api/me/posts?id=... ──────────────────────────────────────────────
 
 export async function DELETE(req: Request) {
-    const userId = getUserIdFromRequest(req);
+    const userId = await getUserIdFromRequest(req);
     if (!userId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
     const url = new URL(req.url);

@@ -7,7 +7,7 @@ const RECOM_CACHE = new Map<string, { data: any; expiresAt: number }>();
 
 export async function GET(req: Request) {
     try {
-        const userId = getUserIdFromRequest(req);
+        const userId = await getUserIdFromRequest(req);
         if (!userId) {
             return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
         }

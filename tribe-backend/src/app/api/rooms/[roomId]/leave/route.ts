@@ -8,7 +8,7 @@ export async function POST(
     { params }: { params: Promise<{ roomId: string }> }
 ) {
     try {
-        const userId = getUserIdFromRequest(req);
+        const userId = await getUserIdFromRequest(req);
         if (!userId) {
             return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
         }

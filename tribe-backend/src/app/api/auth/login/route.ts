@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import bcrypt from 'bcrypt';
-import jwt from 'jsonwebtoken';
 import { prisma } from '../../../../lib/prisma';
+import { signToken } from '../../../../lib/auth';
 
 export async function POST(req: Request) {
     try {
@@ -14,9 +14,7 @@ export async function POST(req: Request) {
             );
         }
 
-        const user = await prisma.user.findUnique({
-            where: { email },
-        });
+        const user = await prisma.user.findUnique({ where: { email } });
 
         if (!user) {
             return NextResponse.json(
@@ -26,7 +24,6 @@ export async function POST(req: Request) {
         }
 
         const isMatch = await bcrypt.compare(password, user.password);
-
         if (!isMatch) {
             return NextResponse.json(
                 { error: 'Invalid email or password' },
@@ -34,34 +31,23 @@ export async function POST(req: Request) {
             );
         }
 
-        const secret = process.env.JWT_SECRET || 'default-secret-key';
-        const token = jwt.sign(
-            { userId: user.id, role: user.role },
-            secret,
-            { expiresIn: '7d' }
-        );
-
         // Update lastActiveAt on successful login
         const updatedUser = await prisma.user.update({
             where: { id: user.id },
-            data: { lastActiveAt: new Date() }
+            data:  { lastActiveAt: new Date() },
         });
 
         const { password: _, ...userWithoutPassword } = updatedUser;
 
+        // Sign with jti + iat + exp via centralised helper
+        const token = signToken(user.id, user.role);
+
         return NextResponse.json(
-            {
-                message: 'Login successful',
-                user: userWithoutPassword,
-                token,
-            },
+            { message: 'Login successful', user: userWithoutPassword, token },
             { status: 200 }
         );
     } catch (error) {
         console.error('Login Error:', error);
-        return NextResponse.json(
-            { error: 'Internal server error' },
-            { status: 500 }
-        );
+        return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
     }
 }

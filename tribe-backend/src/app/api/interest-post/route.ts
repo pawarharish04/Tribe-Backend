@@ -1,10 +1,13 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '../../../lib/prisma';
 import { getUserIdFromRequest } from '../../../lib/auth';
+import { detectLabels } from '../../../services/rekognitionService';
+import { promises as fs } from 'fs';
+import path from 'path';
 
 export async function POST(req: Request) {
     try {
-        const userId = getUserIdFromRequest(req);
+        const userId = await getUserIdFromRequest(req);
         if (!userId) {
             return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
         }
@@ -28,12 +31,41 @@ export async function POST(req: Request) {
             return NextResponse.json({ error: 'Maximum 5 posts allowed per interest' }, { status: 403 });
         }
 
+        // --- AWS Rekognition Auto-Tagging ---
+        let autoTagConnections: { id: string }[] = [];
+        if (mediaId) {
+            try {
+                const media = await prisma.media.findUnique({ where: { id: mediaId } });
+                if (media && media.url && media.type === 'image') {
+                    const filePath = path.join(process.cwd(), 'public', media.url);
+                    const fileBuffer = await fs.readFile(filePath);
+                    const base64Image = fileBuffer.toString('base64');
+
+                    const labels = await detectLabels(base64Image);
+                    if (labels.length > 0) {
+                        const matchedInterests = await prisma.interest.findMany({
+                            where: { name: { in: labels } }
+                        });
+                        autoTagConnections = matchedInterests.map(i => ({ id: i.id }));
+                        console.log(`[Auto-Tag] Discovered tags for post:`, labels, `Matched IDs:`, autoTagConnections);
+                    }
+                }
+            } catch (err) {
+                console.error("[Auto-Tag] Error during label detection", err);
+            }
+        }
+        // ------------------------------------
+
         const post = await prisma.interestPost.create({
             data: {
                 userId,
                 interestId,
                 mediaId,
-                caption
+                caption,
+                autoTags: autoTagConnections.length > 0 ? { connect: autoTagConnections } : undefined
+            },
+            include: {
+                autoTags: true
             }
         });
 

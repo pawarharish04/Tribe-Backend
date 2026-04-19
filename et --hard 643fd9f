@@ -1,0 +1,65 @@
+[33mb952286[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mmain[m[33m, [m[1;31morigin/main[m[33m, [m[1;31morigin/HEAD[m[33m)[m refactor: remove trending components and logic again
+[33m80fcd93[m refactor: update CreatorCard and FeedSection to modern vertical grid layout
+[33m78b61b1[m fix: resolve html hydration mismatch error
+[33me9610cd[m feat: implement trending creators & ui reactivity enhancements
+[33m643fd9f[m refactor: implement SSR feed loading with skeletons and interactions
+[33md96dc92[m fix: correct prisma import path resolving error in trending API route
+[33m0ff42df[m feat: implement horizontal feed layout and discovery grids
+[33mfda2f87[m feat: Creative Compatibility Engine and Recommend Creators feed section
+[33m303f02a[m docs: finalize README and apply stabilization patches to auth navigation
+[33m2b6ac6e[m feat: ScrollStack storytelling layout on profile page
+[33m3a5b43e[m feat: Warm Sand & Ink design system across entire frontend
+[33m8492d1e[m feat: Warm Sand & Ink editorial profile aesthetic
+[33mad7d1d9[m refactor: Apple HIG light theme on /me profile
+[33m5d544b6[m feat: curved carousel profile page (/me)
+[33m6e10a17[m redesign: vertical portfolio cards with frosted caption bar
+[33mbd3d591[m refactor: persistent stats below portfolio tiles
+[33m316e2e2[m feat: visual portfolio grid + fullscreen post modal on /me
+[33m34b2ba1[m feat: split /me into view + edit routes
+[33mb4f4cc7[m feat: local file upload for interest posts
+[33meec882b[m feat: soft diversity injection on feed
+[33m86d2407[m feat: real-time online presence system
+[33m799b3a4[m feat: real-time typing indicators in chat
+[33m9c03a00[m feat: secure real-time WebSocket chat with Socket.io
+[33m4b0523f[m perf: performance hardening - indexes, query decomposition, batch impressions
+[33me226d74[m feat: privacy enforcement layer (hide distances and activity dot based on settings) across Feed, Profile, matches
+[33mc28c1fb[m feat: settings page — distances, activity, pwd change, delete account
+[33m6e6fb21[m feat: /me profile editor — schema migration, 4 APIs (GET+PATCH /api/me, PATCH /api/me/interests, POST+DELETE /api/me/posts), ProfileEditor client component (4 sections), server page with stats
+[33m0154ce9[m feat(phase-3): 2-column matches layout — MatchList sidebar component, matches/page.tsx empty-state right panel, matches/[id]/page.tsx ChatPane in right panel with activeId highlight
+[33m08456ea[m feat(phase-2): move feed/matches/activity under (protected)/ route group, strip old inline headers, single Navbar from layout.tsx now owns all three pages
+[33m7e2c71f[m feat(phase-1): Navbar + AvatarDropdown components, (protected)/layout.tsx scaffold, fix Next.js 16 async params in messages route
+[33m8e139a8[m feat: subtle 180ms fade-in + 6px slide for incoming chat messages via seenIds ref tracking — own messages and previous polls never re-animate
+[33mab079d3[m feat: Message model + migration, secure GET/POST /api/matches/[id]/messages, chat UI with 6s poll + optimistic send + date separators, dual Message/Profile CTAs on match cards
+[33me9c7bd7[m fix: critical match modal never fired — API sends matched but client checked match; fix payload key ction → 	ype in both feed and profile like handlers; profile like-back now routes to /matches on mutual
+[33m2812b6c[m feat: activity panel with post-likes signal surface, reveal ladder enforced, nav updated across all pages
+[33m6689255[m feat: add PostLike model + migration + isolated /api/post-like endpoint + optimistic heart UI on feed cards; fix all TS errors across feed/profile/post-like routes
+[33m15213cd[m feat: complete navigation polish, deep link verification, native desktop backward caching via sessionStorage, and intentional modal match transitioning
+[33mab32025[m feat: complete step 4 and step 5 onboarding interception hierarchy bridging undefined structural signatures across identity mapping networks natively routing back into discovery payload parameters
+[33m74c38fe[m fix: intercept infinite react rendering reload loop on discovery feed mounts caused by circular dependency refreshes of the cursor update logic
+[33m9b899a7[m feat: enforce interactive minimal interest array mapping bindings during auth pipeline initiation sequences and shield type inferences on strict fallback structures
+[33m3e1c0d0[m feat: restructure desktop application gateway adding strict identity entry endpoints and middleware routing proxies shielding raw feed clusters
+[33mf0d73f1[m chore: wipe default next router boilerplate and implement strict stateless server redirect linking / natively to /feed for instantaneous LAN viewport delivery
+[33mbb44de6[m feat: implement Micro UX polish including real-time active indicators, swipe-away deterministic animations, and structural instrumentation
+[33m76ee6e9[m feat: orchestrate precise deterministic feed pagination relying on stable score-id composite cursors rendering infinite sequence appends
+[33md5bb414[m feat: complete Phase 1 /profile dynamics orchestrating exact identity render via matched constraints and hierarchical interest expression walls
+[33m8d4940a[m feat: configure Phase 1 matches pipeline extracting exact distances, last active status and shared interests into strict UI renders
+[33mf1da9be[m feat: build Phase 1 Feed UI with Identity Reveal Ladder display, match modal, and real-time interaction buttons
+[33mf208c2b[m feat: implement Identity Reveal Ladder logic enforcing soft and full profile visibility dynamically via MatchUnlock status
+[33m8aacf87[m feat: implement Momentum Boost matching modifier to reward synchronous passion
+[33m3dfe1a0[m docs: clarify activity weighting scale in CURRENT_PROCESS.md
+[33m8f182cb[m feat: add Activity Weighting algorithm to match scoring based on lastActiveAt
+[33m8fb1fba[m feat: implement 48h TTL on feed impressions and cascade delete
+[33m65d4e16[m docs: add CURRENT_PROCESS.md tracking architecture and implementation state
+[33ma07a3fa[m feat: add FeedImpression model and progressively ignore evaluated candidates in feed
+[33m130b257[m feat: enrich feed candidates with interestPosts (take 3) in single query, update debug-feed harness
+[33maa9b865[m[33m ([m[1;32mcopilot-worktree-2026-02-27T07-25-05[m[33m, [m[1;32mcopilot-worktree-2026-02-27T07-19-40[m[33m)[m feat: add Media and InterestPost models with api routes
+[33m1becab0[m feat: refactor matching score distance multiplier and 1.5x interest base weights
+[33m97c8ece[m feat: setup programmatic data seeding endpoint at /api/seed and enhance matching logic testing
+[33mb9d94e4[m test: implement strict scaling models, hierarchy overrides, test 9, test 10, production guards
+[33m3cd956e[m test: Phase 2 Structural Hardening metrics, scoring integrity, interaction race conditions, and unit tests
+[33m63b4c7e[m feat: phase 1 stabilization of engines and indexes
+[33m326abbd[m feat: Add core data models, auth, interest and geo feed APIs
+[33m292f00a[m Update outer README with project description
+[33mf38ccd6[m Merge branch 'main' of https://github.com/pawarharish04/Tribe-Backend
+[33m1a5a0d5[m Initial project setup with Next.js, Prisma, and project status documentation
+[33m507ba6e[m first commit

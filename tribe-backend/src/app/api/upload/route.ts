@@ -29,7 +29,7 @@ const MAX_BYTES = 10 * 1024 * 1024; // 10 MB
 
 // ─── POST /api/upload ─────────────────────────────────────────────────────────
 export async function POST(req: Request) {
-    const userId = getUserIdFromRequest(req);
+    const userId = await getUserIdFromRequest(req);
     if (!userId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
     try {

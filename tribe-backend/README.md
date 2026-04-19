@@ -1,35 +1,37 @@
 # Tribe
 
-**Tribe** is a creative compatibility network where creators connect based on shared interests, geographical proximity, and creative output. Built with a high-end "Warm Sand & Ink" editorial design aesthetic (inspired by Japanese design magazines and Kinfolk), the platform feels immersive, intentional, and curated.
+**Tribe** is a next-generation creative compatibility network where creators connect based on shared interests, geographical proximity, and creative output. Enhanced with **Advanced AI & AWS Cloud Integration**, Tribe delivers an ultra-personalized, safe, and frictionless networking experience inside a high-end "Warm Sand & Ink" editorial design aesthetic.
 
-## Features
+## 🚀 Ultra-Capabilities (AI & Cloud)
 
-- **Interest-Based Discovery:** A recommendation engine ranks creators based on shared interests, geographical distance, and activity factors.
+Tribe uses state-of-the-art Generative AI and Cloud Machine Learning to handle matching, discoverability, and moderation seamlessly in the background.
+
+- **Vector Semantic Matchmaking:** The `Compatibility Engine` uses AI Models (Google Gemini) to transform user bios and interests into 768-dimensional embeddings. PostgreSQL's `pgvector` runs real-time cosine-similarity mathematics (`<=>`) to instantly connect creators with synergistic vibes, looking past raw keywords into the actual meaning of their profiles.
+- **Visual Auto-Tagging:** When a user uploads an image, the backend streams the image blob directly to **AWS Rekognition**. The AI automatically detects objects in the scenery (e.g., "Surfboard", "Music Studio") and attaches relevant Interest Tags to the post seamlessly.
+- **Autonomous Content Policeman:** The platform requires zero human moderation for initial safety. **AWS Rekognition** scans all incoming visual media and automatically blocks Explicit/Suggestive imagery before it hits the database.
+- **Real-Time Toxic Chat Filtering:** The `Socket.io` chat server inherently protects the community by running all incoming messages through **AWS Comprehend**. Hate speech, harassment, and spam are blocked from being broadcasted and flagged instantly.
+- **Algorithmic Feeds:** Every Like, Pass, and Superlike interaction is streamed directly to **AWS Personalize**. This enables TikTok-style Recommendation Engines to power the "For You" discovery feeds.
+
+## ✨ Core Features
+
+- **Interest-Based Discovery:** A dynamic algorithm combining Vector AI score (40%), Shared Interests (30%), Content (20%), and Past Interactions (10%).
 - **Editorial Aesthetics:** Unique visual identity utilizing a Warm Sand & Ink palette (creams, subtle sepias, muted sage/clay/indigo) and sophisticated typography (Fraunces and Cormorant Garamond).
 - **Interactive Profiles (ScrollStack):** Profiles utilize a vertical storytelling layout, where expressive cards stack, scale, and blur smoothly as you scroll—like flipping through a magazine.
 - **Real-Time Encounters:**
   - Instantly swipe/like creators.
   - Mutual likes create a "Match."
   - Real-time chatting powered by WebSockets (`socket.io`), complete with online presence and typing indicators.
-- **Responsive System:** A fluid, mobile-first container system featuring a sticky App-like bottom navigation on mobile devices, seamlessly scaling into a desktop layout.
-- **Rich Portfolios:** Dedicated grids for images, videos, and multi-piece expression walls.
 
-## Tech Stack
+## 🛠 Tech Stack
 
-- **Frontend:** Next.js (App Router), React, CSS Modules / JSX styling, lucide-react (icons).
+- **Frontend:** Next.js (App Router), React, CSS Modules / JSX styling, framer-motion.
 - **Backend:** Node.js / Next.js API Routes.
-- **Database:** PostgreSQL accessed via Prisma ORM.
-- **Real-Time Communication:** Socket.IO server.
+- **Database:** PostgreSQL accessed via Prisma ORM (utilizing `pgvector`).
+- **AI & ML Cloud:** AWS SDK (Rekognition, Comprehend, Personalize), Google Generative AI (Gemini).
+- **Real-Time:** Socket.IO server.
 - **Authentication:** Custom JWT-based Authentication seamlessly integrated through `/api/auth`.
 
-## Core Project Architecture
-
-- `src/app/(protected)`: The primary application shell containing the Feed (`/feed`), Matches & Chat (`/matches`), Profile (`/me` and `/profile/[id]`), and Settings (`/settings`).
-- `src/components/`: Reusable, encapsulated UI components (`ScrollStack`, `Navbar`, `MobileBottomNav`, `MatchesList`).
-- `src/styles/designTokens.ts`: The central nervous system for our Warm Sand & Ink CSS design specs (colors, shadows, spacing, typographic pairings).
-- `src/api/`: REST endpoints handling matchmaking interactions, auth routines, profile updates, and compatibility engine signals.
-
-## Getting Started
+## ⚙️ Getting Started
 
 1. **Clone the repository:**
    ```bash
@@ -42,16 +44,25 @@
    npm install
    ```
 
-3. **Configure Environment:**
-   Create a `.env` file in the root directory. You will need variables for:
-   - `DATABASE_URL` for PostgreSQL.
-   - `JWT_SECRET` for token signing.
-   - Any other essential variables your Prisma instance or Next.js setup requires.
+3. **Configure Environment (`.env`):**
+   Create a `.env` file in the root directory. You will need:
+   ```env
+   # Database & Auth
+   DATABASE_URL="postgresql://user:pass@host/db?sslmode=require"
+   JWT_SECRET="your_secret"
 
-4. **Initialize the Database:**
+   # AWS & AI Integration Keys
+   AWS_REGION="us-east-1"
+   AWS_ACCESS_KEY_ID="your_aws_key"
+   AWS_SECRET_ACCESS_KEY="your_aws_secret"
+   PERSONALIZE_TRACKING_ID="your_tracker_id"
+   GEMINI_API_KEY="your_gemini_key"
+   ```
+
+4. **Initialize the Database (Requires PostgreSQL with `pgvector` enabled):**
    ```bash
    npx prisma generate
-   npx prisma migrate dev
+   npx prisma db push
    ```
 
 5. **Run the Development Server:**
@@ -60,17 +71,10 @@
    ```
    Open `http://localhost:3000` to interact with the platform.
 
-6. **Run the WebSocket Server (If external):**
+6. **Run the WebSocket Server:**
    ```bash
    npm run socket
    ```
-
-## Design Philosophy
-
-We believe social networks don't have to feel corporate or visually sterile. Tribe embraces:
-- **Serif over Sans:** Breaking web norms by using classic optical typography designed originally for physical print.
-- **Earth Pigments over Neons:** Replacing standard blue links and active greens with parchment backgrounds, sage highlights, and deep clay/indigo accents.
-- **Motion with Purpose:** Transitions scale and breathe cleanly via native CSS hardware acceleration without over-engineering layout jumps.
 
 ---
 

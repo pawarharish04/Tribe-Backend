@@ -1,10 +1,12 @@
 import { prisma } from '../lib/prisma';
+import { Prisma } from '@prisma/client';
 
 export interface CompatibilityResult {
     userId: string;
     interestScore: number;
     contentScore: number;
     interactionScore: number;
+    vectorScore: number;
     totalScore: number;
     sharedInterests: string[];
 }
@@ -27,6 +29,20 @@ export async function calculateCompatibilityBatch(primaryUserId: string, candida
     });
 
     if (!primaryUser) return [];
+
+    let vectorDistances = new Map<string, number>();
+    try {
+        const vResults = await prisma.$queryRaw<{id: string, distance: number | null}[]>`
+            SELECT id, "bioEmbedding" <=> (SELECT "bioEmbedding" FROM "User" WHERE id = ${primaryUserId}::uuid) as distance
+            FROM "User"
+            WHERE id IN (${Prisma.join(candidateIds.map(id => Prisma.sql`${id}::uuid`))}) AND "bioEmbedding" IS NOT NULL
+        `;
+        vResults.forEach(r => {
+            if (r.distance !== null) vectorDistances.set(r.id, r.distance);
+        });
+    } catch (err) {
+        console.error("Vector search failed or pgvector not installed.", err);
+    }
 
     // Fetch all candidates in one query
     const candidates = await prisma.user.findMany({
@@ -87,14 +103,20 @@ export async function calculateCompatibilityBatch(primaryUserId: string, candida
         const uniqueLikesCount = new Set([...likesA, ...likesB]).size;
         const interactionScore = uniqueLikesCount === 0 ? 0 : (sharedLikesCount / uniqueLikesCount) * 100;
 
-        // --- 4. Final Score ---
-        const totalScore = (interestScore * 0.4) + (contentScore * 0.4) + (interactionScore * 0.2);
+        // --- 4. Vector AI Score ---
+        const distance = vectorDistances.get(userB.id) ?? 1; // Default to neutral distance (1)
+        const vectorScore = Math.max(0, (1 - (distance / 2)) * 100);
+
+        // --- 5. Final Score ---
+        // Heavily weight the AI vector score (40%), interests (30%), content (20%), interaction (10%)
+        const totalScore = (interestScore * 0.3) + (contentScore * 0.2) + (interactionScore * 0.1) + (vectorScore * 0.4);
 
         results.push({
             userId: userB.id,
             interestScore,
             contentScore,
             interactionScore,
+            vectorScore,
             totalScore,
             sharedInterests: sharedInterestsNames
         });
@@ -105,5 +127,5 @@ export async function calculateCompatibilityBatch(primaryUserId: string, candida
 
 export async function calculateCompatibility(userAId: string, userBId: string): Promise<CompatibilityResult> {
     const results = await calculateCompatibilityBatch(userAId, [userBId]);
-    return results[0] || { userId: userBId, interestScore: 0, contentScore: 0, interactionScore: 0, totalScore: 0, sharedInterests: [] };
+    return results[0] || { userId: userBId, interestScore: 0, contentScore: 0, interactionScore: 0, vectorScore: 0, totalScore: 0, sharedInterests: [] };
 }

@@ -10,7 +10,7 @@ const VALID_LEVELS = [1, 2, 3];
 // Replaces the user's interest list with the provided one.
 
 export async function PATCH(req: Request) {
-    const userId = getUserIdFromRequest(req);
+    const userId = await getUserIdFromRequest(req);
     if (!userId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
     const body = await req.json();

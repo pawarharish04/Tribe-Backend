@@ -4,7 +4,7 @@ import { getUserIdFromRequest } from '../../../lib/auth';
 
 export async function POST(req: Request) {
     try {
-        const userId = getUserIdFromRequest(req);
+        const userId = await getUserIdFromRequest(req);
         if (!userId) {
             return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
         }
@@ -70,7 +70,7 @@ export async function POST(req: Request) {
 
 export async function DELETE(req: Request) {
     try {
-        const userId = getUserIdFromRequest(req);
+        const userId = await getUserIdFromRequest(req);
         if (!userId) {
             return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
         }

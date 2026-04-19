@@ -90,7 +90,7 @@ function applyDiversity(sorted: any[]): any[] {
 export async function GET(req: Request) {
     const startTime = performance.now();
     try {
-        const userId = getUserIdFromRequest(req);
+        const userId = await getUserIdFromRequest(req);
         if (!userId) {
             return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
         }

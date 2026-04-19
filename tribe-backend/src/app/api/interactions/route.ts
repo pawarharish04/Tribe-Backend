@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '../../../lib/prisma';
 import { getUserIdFromRequest } from '../../../lib/auth';
+import { trackUserInteraction } from '../../../services/personalizeService';
 
 // Simple In-Memory Rate Limiter Map
 // Tracks { userId: { count, timestamp } }
@@ -10,7 +11,7 @@ const RATE_LIMIT_MAX_REQUESTS = 60; // 60 Swipes/Signals per minute
 
 export async function POST(req: Request) {
     try {
-        const userId = getUserIdFromRequest(req);
+        const userId = await getUserIdFromRequest(req);
         if (!userId) {
             return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
         }
@@ -97,6 +98,9 @@ export async function POST(req: Request) {
             }
             return inter;
         });
+
+        // AI Personalize Tracking
+        trackUserInteraction(userId, targetId, type as 'LIKE'|'PASS'|'SUPERLIKE').catch(err => console.error("Personalize tracking failed", err));
 
         if (isMatch) {
             return NextResponse.json({ message: 'It\'s a match!', matched: true, interaction }, { status: 201 });

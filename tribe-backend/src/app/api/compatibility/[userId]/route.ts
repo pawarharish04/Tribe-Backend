@@ -8,7 +8,7 @@ export async function GET(
     { params }: { params: Promise<{ userId: string }> }
 ) {
     try {
-        const currentUserId = getUserIdFromRequest(req);
+        const currentUserId = await getUserIdFromRequest(req);
         if (!currentUserId) {
             return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
         }

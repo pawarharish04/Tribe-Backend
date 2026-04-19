@@ -1,11 +1,12 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '../../../lib/prisma';
 import { getUserIdFromRequest } from '../../../lib/auth';
+import { generateBioEmbedding } from '../../../services/embeddingService';
 
 // ─── GET /api/me ──────────────────────────────────────────────────────────────
 
 export async function GET(req: Request) {
-    const userId = getUserIdFromRequest(req);
+    const userId = await getUserIdFromRequest(req);
     if (!userId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
     const user = await prisma.user.findUnique({
@@ -68,7 +69,7 @@ export async function GET(req: Request) {
 // ─── PATCH /api/me ────────────────────────────────────────────────────────────
 
 export async function PATCH(req: Request) {
-    const userId = getUserIdFromRequest(req);
+    const userId = await getUserIdFromRequest(req);
     if (!userId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
     const body = await req.json();
@@ -86,6 +87,16 @@ export async function PATCH(req: Request) {
         data,
         select: { id: true, name: true, bio: true, avatarUrl: true, locationEnabled: true },
     });
+
+    if (data.bio) {
+        try {
+            const embeddingValues = await generateBioEmbedding(data.bio as string);
+            const vectorString = `[${embeddingValues.join(',')}]`;
+            await prisma.$executeRaw`UPDATE "User" SET "bioEmbedding" = ${vectorString}::vector WHERE id = ${userId}`;
+        } catch (err) {
+            console.error("Failed to generate and store bio embedding", err);
+        }
+    }
 
     return NextResponse.json({ user: updated });
 }

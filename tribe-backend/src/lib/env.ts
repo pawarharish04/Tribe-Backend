@@ -26,6 +26,14 @@ const envSchema = z.object({
     CLOUDINARY_API_SECRET: z.string().min(1, {
         message: 'CLOUDINARY_API_SECRET is required',
     }),
+
+    // Upstash Redis (token blacklist)
+    UPSTASH_REDIS_REST_URL: z.string().url({
+        message: 'UPSTASH_REDIS_REST_URL must be a valid URL',
+    }),
+    UPSTASH_REDIS_REST_TOKEN: z.string().min(1, {
+        message: 'UPSTASH_REDIS_REST_TOKEN is required',
+    }),
 });
 
 // Validate once at module load time — throws immediately on missing/invalid vars.
