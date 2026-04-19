@@ -6,7 +6,8 @@ RUN apk add --no-cache libc6-compat python3 make g++
 
 WORKDIR /app
 
-# Install dependencies first (layer-cached unless lockfile changes)
+# Install dependencies first (layer-cached unless lockfile changes).
+# postinstall runs `prisma generate` automatically here.
 COPY package.json package-lock.json ./
 RUN npm ci
 
@@ -34,10 +35,25 @@ ENV NEXT_TELEMETRY_DISABLED=1
 RUN addgroup --system --gid 1001 nodejs && \
     adduser  --system --uid 1001 nextjs
 
-# Copy only what Next.js standalone output needs
+# Copy the Next.js standalone output
 COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
 COPY --from=builder --chown=nextjs:nodejs /app/.next/static    ./.next/static
 COPY --from=builder --chown=nextjs:nodejs /app/public          ./public
+
+# Copy Prisma schema + migrations so `prisma migrate deploy` can run at startup.
+# The Prisma client itself is already embedded inside the standalone output.
+COPY --from=builder --chown=nextjs:nodejs /app/prisma ./prisma
+
+# Copy the entrypoint script and make it executable
+COPY --from=builder --chown=nextjs:nodejs /app/scripts/entrypoint.sh ./entrypoint.sh
+RUN chmod +x ./entrypoint.sh
+
+# Also copy the prisma CLI binary so the runner can call `npx prisma migrate deploy`
+# without needing the full node_modules tree.
+COPY --from=builder --chown=nextjs:nodejs /app/node_modules/.bin/prisma            ./node_modules/.bin/prisma
+COPY --from=builder --chown=nextjs:nodejs /app/node_modules/prisma                 ./node_modules/prisma
+COPY --from=builder --chown=nextjs:nodejs /app/node_modules/@prisma/client         ./node_modules/@prisma/client
+COPY --from=builder --chown=nextjs:nodejs /app/node_modules/@prisma/engines        ./node_modules/@prisma/engines
 
 USER nextjs
 
@@ -45,7 +61,8 @@ EXPOSE 3000
 ENV PORT=3000
 ENV HOSTNAME="0.0.0.0"
 
-HEALTHCHECK --interval=30s --timeout=10s --start-period=15s --retries=3 \
+HEALTHCHECK --interval=30s --timeout=10s --start-period=30s --retries=3 \
     CMD wget -qO- http://localhost:3000/api/health || exit 1
 
-CMD ["node", "server.js"]
+# entrypoint.sh runs `prisma migrate deploy` then `exec node server.js`
+CMD ["sh", "./entrypoint.sh"]
