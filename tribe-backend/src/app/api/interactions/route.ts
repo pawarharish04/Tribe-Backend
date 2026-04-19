@@ -3,6 +3,7 @@ import { prisma } from '../../../lib/prisma';
 import { getUserIdFromRequest } from '../../../lib/auth';
 import { trackUserInteraction } from '../../../services/personalizeService';
 import { parseBody, z } from '../../../lib/validate';
+import { rateLimit, rateLimitResponse } from '../../../lib/rateLimit';
 
 const InteractionSchema = z.object({
     targetId: z.string().uuid({ message: 'targetId must be a valid UUID.' }),
@@ -11,12 +12,6 @@ const InteractionSchema = z.object({
     }),
 });
 
-// Simple In-Memory Rate Limiter Map
-// Tracks { userId: { count, timestamp } }
-const rateLimitMap = new Map<string, { count: number; timestamp: number }>();
-const RATE_LIMIT_WINDOW_MS = 60 * 1000; // 1 Minute
-const RATE_LIMIT_MAX_REQUESTS = 60; // 60 Swipes/Signals per minute
-
 export async function POST(req: Request) {
     try {
         const userId = await getUserIdFromRequest(req);
@@ -24,30 +19,10 @@ export async function POST(req: Request) {
             return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
         }
 
-        // --- Rate Limiting Strategy ---
-        const currentTime = Date.now();
-        const userRateData = rateLimitMap.get(userId);
-
-        if (userRateData) {
-            // Check if within window
-            if (currentTime - userRateData.timestamp < RATE_LIMIT_WINDOW_MS) {
-                if (userRateData.count >= RATE_LIMIT_MAX_REQUESTS) {
-                    return NextResponse.json(
-                        { error: 'Rate limit exceeded. Too many actions. Try again later.' },
-                        { status: 429 }
-                    );
-                }
-                userRateData.count++;
-                rateLimitMap.set(userId, userRateData);
-            } else {
-                // Reset Window
-                rateLimitMap.set(userId, { count: 1, timestamp: currentTime });
-            }
-        } else {
-            // Initialize rate limit data
-            rateLimitMap.set(userId, { count: 1, timestamp: currentTime });
-        }
-        // -----------------------------
+        // ── Redis sliding-window rate limit: 60 interactions / 60 s ──────────
+        const rl = await rateLimit(userId, 'interactions', 60, 60);
+        if (!rl.allowed) return rateLimitResponse(rl);
+        // ─────────────────────────────────────────────────────────────────────
 
         const parsed = await parseBody(req, InteractionSchema);
         if (!parsed.ok) return parsed.response;

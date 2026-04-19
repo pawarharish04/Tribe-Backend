@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { prisma } from '../../../lib/prisma';
 import { getUserIdFromRequest } from '../../../lib/auth';
 import { parseBody, z } from '../../../lib/validate';
+import { rateLimit, rateLimitResponse } from '../../../lib/rateLimit';
 
 const ReportSchema = z.object({
     reportedId:    z.string().uuid({ message: 'reportedId must be a valid UUID.' }),
@@ -19,6 +20,11 @@ export async function POST(req: Request) {
         if (!userId) {
             return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
         }
+
+        // ── Redis rate limit: 10 reports / 60 s per user ─────────────────────
+        const rl = await rateLimit(userId, 'report', 10, 60);
+        if (!rl.allowed) return rateLimitResponse(rl);
+        // ─────────────────────────────────────────────────────────────────────
 
         const parsed = await parseBody(req, ReportSchema);
         if (!parsed.ok) return parsed.response;

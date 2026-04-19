@@ -5,6 +5,7 @@ import { detectLabels } from '../../../services/rekognitionService';
 import { promises as fs } from 'fs';
 import path from 'path';
 import { parseBody, z } from '../../../lib/validate';
+import { rateLimit, rateLimitResponse } from '../../../lib/rateLimit';
 
 const InterestPostSchema = z.object({
     interestId: z.string().uuid({ message: 'interestId must be a valid UUID.' }),
@@ -18,6 +19,11 @@ export async function POST(req: Request) {
         if (!userId) {
             return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
         }
+
+        // ── Redis rate limit: 20 posts / 60 s per user ────────────────────────
+        const rl = await rateLimit(userId, 'interest-post', 20, 60);
+        if (!rl.allowed) return rateLimitResponse(rl);
+        // ─────────────────────────────────────────────────────────────────────
 
         const parsed = await parseBody(req, InterestPostSchema);
         if (!parsed.ok) return parsed.response;
