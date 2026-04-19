@@ -28,6 +28,14 @@ function pickRandomItems<T>(arr: T[], count: number): T[] {
 }
 
 export async function GET(req: Request) {
+    // ── Production guard — this route must never run in production ────────────
+    if (process.env.NODE_ENV === 'production') {
+        return NextResponse.json(
+            { error: 'Forbidden: seed endpoint is disabled in production.' },
+            { status: 403 },
+        );
+    }
+
     try {
         const url = new URL(req.url);
         const countParam = url.searchParams.get('count');
@@ -126,7 +134,7 @@ export async function GET(req: Request) {
             })
         ));
 
-        const token = jwt.sign({ userId: testOriginUser.id }, process.env.JWT_SECRET || 'default-secret-key');
+        const token = jwt.sign({ userId: testOriginUser.id }, process.env.JWT_SECRET as string);
 
         const feedPool = await prisma.user.findMany({
             where: { id: { startsWith: 'mock_user_' } },

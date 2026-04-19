@@ -1,0 +1,131 @@
+"use client";
+
+import React, { useState } from "react";
+
+export default function DebugFeedClient() {
+    const [token, setToken] = useState("");
+    const [feedData, setFeedData] = useState<any[] | null>(null);
+    const [error, setError] = useState<string | null>(null);
+    const [loading, setLoading] = useState(false);
+
+    const fetchFeed = async () => {
+        setLoading(true);
+        setError(null);
+        try {
+            const res = await fetch("/api/feed", {
+                headers: {
+                    Authorization: `Bearer ${token}`,
+                },
+            });
+
+            if (!res.ok) {
+                throw new Error(`HTTP error! status: ${res.status}`);
+            }
+
+            const data = await res.json();
+            setFeedData(data.feed || []);
+        } catch (err: any) {
+            setError(err.message || "Failed to fetch feed");
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const calculateApproxKm = (distSq: number | null) => {
+        if (distSq === null || distSq === undefined) return "N/A";
+        const degrees = Math.sqrt(distSq);
+        const km = degrees * 111; // 1 degree lat/lon is roughly 111km
+        return km.toFixed(2);
+    };
+
+    return (
+        <div style={{ padding: "20px", fontFamily: "monospace", maxWidth: "800px", margin: "0 auto" }}>
+            <h1>Feed Visualization Harness</h1>
+            <p style={{ marginBottom: "20px" }}>Paste a valid JWT below to test the matching algorithm.</p>
+
+            <div style={{ marginBottom: "20px", display: "flex", gap: "10px", flexDirection: "column" }}>
+                <textarea
+                    value={token}
+                    onChange={(e) => setToken(e.target.value)}
+                    placeholder="eyJhbGciOiJIUzI1NiIsInR5cCI6..."
+                    style={{ width: "100%", height: "80px", padding: "10px", fontFamily: "monospace" }}
+                />
+                <button
+                    onClick={fetchFeed}
+                    disabled={loading || !token.trim()}
+                    style={{ padding: "10px", cursor: "pointer", alignSelf: "flex-start", fontSize: "16px" }}
+                >
+                    {loading ? "Loading..." : "Load Feed"}
+                </button>
+            </div>
+
+            {error && <div style={{ color: "red", marginBottom: "20px" }}><strong>Error:</strong> {error}</div>}
+
+            {feedData && (
+                <div>
+                    <h2>Results ({feedData.length})</h2>
+                    <div style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
+                        {feedData.length === 0 && <p>No users found in feed.</p>}
+                        {feedData.map((user, idx) => (
+                            <div key={user.id || idx} style={{ border: "1px solid #ccc", padding: "15px", borderRadius: "5px", background: "#f9f9f9", color: "#333", opacity: user.revealed ? 1 : 0.8 }}>
+                                <h3 style={{ margin: "0 0 10px 0", display: "flex", alignItems: "center", gap: "8px" }}>
+                                    #{idx + 1} - {user.displayName}
+                                    {user.revealed && <span style={{ fontSize: "10px", padding: "2px 6px", background: "#d4edda", color: "#155724", borderRadius: "12px", border: "1px solid #c3e6cb", display: "inline-block", transform: "translateY(-1px)" }}>🔓 REVEALED INSTANCE</span>}
+                                    {!user.revealed && <span style={{ fontSize: "10px", padding: "2px 6px", background: "#f8d7da", color: "#721c24", borderRadius: "12px", border: "1px solid #f5c6cb", display: "inline-block", transform: "translateY(-1px)" }}>🔒 LOCKED INSTANCE</span>}
+                                </h3>
+                                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px", marginBottom: "10px" }}>
+                                    <div><strong>Distance:</strong> {user.distanceKm !== null ? user.distanceKm.toFixed(1) + ' km' : '?'} {user.revealed ? '(Exact)' : '(Approximate 5km Radius)'}</div>
+                                    <div style={{ marginTop: "10px", fontSize: "12px", borderBottom: "1px solid #ccc", paddingBottom: "10px" }}>
+                                        <div><strong>Interest Match Base:</strong> {user._interestScore?.toFixed(2) ?? 'N/A'}</div>
+                                        <div><strong>Distance Factor:</strong> {user._distanceFactor?.toFixed(2) ?? 'N/A'}</div>
+                                        <div><strong>Activity Factor:</strong> {user._activityFactor?.toFixed(2) || "1.00"}</div>
+                                        <div><strong>Exact Matches:</strong> {user._exactMatches ?? 0}</div>
+                                        <div><strong>Parent-Child Matches:</strong> {user._parentChildMatches ?? 0}</div>
+                                        <div><strong>Category Matches:</strong> {user._sameCategoryMatches ?? 0}</div>
+                                    </div>
+                                </div>
+
+                                <div>
+                                    <strong>Interests:</strong>
+                                    <pre style={{ background: "#eee", padding: "10px", overflowX: "auto", fontSize: "12px", border: "1px solid #ddd" }}>
+                                        {JSON.stringify(user.interests, null, 2)}
+                                    </pre>
+                                </div>
+
+                                <div style={{ marginTop: "10px" }}>
+                                    <strong>Interest Posts ({user.posts?.length ?? 0}):</strong>
+                                    <div style={{ marginTop: "10px" }}>
+                                        <strong>Final Score:</strong> <span style={{ fontSize: "18px", color: "green" }}>{user._finalScore?.toFixed(2) ?? 'N/A'}</span>
+                                        <span style={{ fontSize: "11px", color: "#666", marginLeft: "6px" }}>
+                                            ({user._interestScore?.toFixed(2) ?? 'N/A'} × dist:{user._distanceFactor?.toFixed(2) ?? 'N/A'} × act:{user._activityFactor?.toFixed(2) || "1.00"})
+                                        </span>
+                                    </div>
+                                    {user.posts && user.posts.length > 0 ? (
+                                        <div style={{ display: "flex", flexDirection: "column", gap: "6px", marginTop: "6px" }}>
+                                            {user.posts.map((post: any, pIdx: number) => (
+                                                <div key={pIdx} style={{ background: "#eee", padding: "8px", borderRadius: "4px", fontSize: "12px", border: "1px solid #ddd" }}>
+                                                    <div><strong>#{pIdx + 1}</strong> — Interest: <em>{post.interest?.name ?? post.interestId}</em></div>
+                                                    {post.caption && <div style={{ color: "#555", marginTop: "2px" }}>"{post.caption}"</div>}
+                                                    {post.media && (
+                                                        <div style={{ marginTop: "4px" }}>
+                                                            <span style={{ color: "#888" }}>[{post.media.type}]</span>{" "}
+                                                            <a href={post.media.url} target="_blank" rel="noopener noreferrer" style={{ color: "#007bff", wordBreak: "break-all" }}>
+                                                                {post.media.url}
+                                                            </a>
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            ))}
+                                        </div>
+                                    ) : (
+                                        <span style={{ color: "#888", fontSize: "12px", marginLeft: "8px" }}>No posts yet</span>
+                                    )}
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            )}
+        </div>
+    );
+}
