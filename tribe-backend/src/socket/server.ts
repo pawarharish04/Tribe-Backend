@@ -12,6 +12,28 @@ dotenv.config();
 
 const PORT = Number(process.env.SOCKET_PORT ?? 4000);
 
+// ─── CORS allowlist ───────────────────────────────────────────────────────────
+// Set CORS_ORIGIN in .env as a comma-separated list of allowed origins:
+//   CORS_ORIGIN=https://app.example.com,https://www.example.com
+// Falls back to localhost:3000 in non-production environments.
+const ALLOWED_ORIGINS: Set<string> = new Set(
+    process.env.CORS_ORIGIN
+        ? process.env.CORS_ORIGIN.split(',').map((o) => o.trim()).filter(Boolean)
+        : process.env.NODE_ENV === 'production'
+            ? [] // no fallback in production — must be explicitly set
+            : ['http://localhost:3000'],
+);
+
+if (process.env.NODE_ENV === 'production' && ALLOWED_ORIGINS.size === 0) {
+    throw new Error(
+        '[socket/server] CORS_ORIGIN environment variable is not set. ' +
+        'Provide a comma-separated list of allowed origins (e.g. https://app.example.com).',
+    );
+}
+
+console.log(`[socket] CORS allowed origins: ${[...ALLOWED_ORIGINS].join(', ')}`);
+
+
 if (!process.env.JWT_SECRET) {
     throw new Error(
         '[socket/server] JWT_SECRET environment variable is not set. ' +
@@ -29,7 +51,20 @@ const prisma = new PrismaClient({ adapter });
 const server = http.createServer();
 
 const io = new Server(server, {
-    cors: { origin: '*' },
+    cors: {
+        // Socket.IO calls this for every upgrade request.
+        // Return the origin if it's in the allowlist, deny otherwise.
+        origin: (requestOrigin, callback) => {
+            // Allow requests with no Origin header (e.g. same-origin / server-to-server)
+            if (!requestOrigin || ALLOWED_ORIGINS.has(requestOrigin)) {
+                callback(null, true);
+            } else {
+                callback(new Error(`CORS: origin '${requestOrigin}' is not allowed.`));
+            }
+        },
+        methods: ['GET', 'POST'],
+        credentials: true,
+    },
 });
 
 // ─── Online Presence Map ─────────────────────────────────────────────────────
