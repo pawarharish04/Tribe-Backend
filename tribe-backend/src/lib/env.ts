@@ -15,6 +15,17 @@ const envSchema = z.object({
         .refine((val) => !isNaN(val) && val > 0 && val < 65536, {
             message: 'SOCKET_PORT must be a valid port number (1-65535)',
         }),
+
+    // Cloudinary
+    CLOUDINARY_CLOUD_NAME: z.string().min(1, {
+        message: 'CLOUDINARY_CLOUD_NAME is required',
+    }),
+    CLOUDINARY_API_KEY: z.string().min(1, {
+        message: 'CLOUDINARY_API_KEY is required',
+    }),
+    CLOUDINARY_API_SECRET: z.string().min(1, {
+        message: 'CLOUDINARY_API_SECRET is required',
+    }),
 });
 
 // Validate once at module load time — throws immediately on missing/invalid vars.

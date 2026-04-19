@@ -11,10 +11,12 @@
     "socket": "tsx src/socket/server.ts"
   },
   "dependencies": {
+    "@google/generative-ai": "^0.24.1",
     "@prisma/adapter-pg": "^7.4.1",
     "@prisma/client": "^7.4.1",
     "@types/pg": "^8.16.0",
     "bcrypt": "^6.0.0",
+    "cloudinary": "^2.9.0",
     "framer-motion": "^12.36.0",
     "jsonwebtoken": "^9.0.3",
     "lucide-react": "^0.577.0",
@@ -24,7 +26,8 @@
     "react-dom": "19.2.3",
     "react-intersection-observer": "^10.0.3",
     "socket.io": "^4.8.3",
-    "socket.io-client": "^4.8.3"
+    "socket.io-client": "^4.8.3",
+    "zod": "^4.3.6"
   },
   "devDependencies": {
     "@types/bcrypt": "^6.0.0",
