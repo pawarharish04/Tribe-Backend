@@ -1,5 +1,7 @@
 # Tribe
 
+[![CI](https://github.com/pawarharish04/Tribe-Backend/actions/workflows/ci.yml/badge.svg)](https://github.com/pawarharish04/Tribe-Backend/actions/workflows/ci.yml)
+
 **Tribe** is a next-generation creative compatibility network where creators connect based on shared interests, geographical proximity, and creative output. Enhanced with **Advanced AI & AWS Cloud Integration**, Tribe delivers an ultra-personalized, safe, and frictionless networking experience inside a high-end "Warm Sand & Ink" editorial design aesthetic.
 
 ## 🚀 Ultra-Capabilities (AI & Cloud)
