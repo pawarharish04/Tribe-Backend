@@ -66,13 +66,39 @@ export async function verifyToken(token: string): Promise<JwtPayload | null> {
     return decoded;
 }
 
-// ─── Request helpers ──────────────────────────────────────────────────────────
+// ─── Token extraction ─────────────────────────────────────────────────────────
+const COOKIE_NAME = 'tribe_token';
+
+/**
+ * Extract the raw JWT string from the request.
+ * Priority: Authorization: Bearer header > tribe_token cookie.
+ *
+ * - Header is preferred so API clients / mobile apps continue to work.
+ * - Cookie fallback serves browser-originated page-level navigation where the
+ *   JS layer cannot inject an Authorization header (e.g. fetch from a Server
+ *   Component or a form submission).
+ */
 function extractRawToken(req: Request): string | null {
+    // 1. Prefer the Authorization header
     const authHeader = req.headers.get('authorization');
-    if (!authHeader?.startsWith('Bearer ')) return null;
-    return authHeader.split(' ')[1];
+    if (authHeader?.startsWith('Bearer ')) {
+        return authHeader.split(' ')[1];
+    }
+
+    // 2. Fall back to the httpOnly cookie
+    const cookieHeader = req.headers.get('cookie');
+    if (cookieHeader) {
+        const match = cookieHeader
+            .split(';')
+            .map((c) => c.trim())
+            .find((c) => c.startsWith(`${COOKIE_NAME}=`));
+        if (match) return match.slice(COOKIE_NAME.length + 1);
+    }
+
+    return null;
 }
 
+// ─── Request helpers ──────────────────────────────────────────────────────────
 export async function getUserIdFromRequest(req: Request): Promise<string | null> {
     const auth = await getAuthFromRequest(req);
     return auth?.userId ?? null;

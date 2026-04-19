@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import bcrypt from 'bcrypt';
 import { prisma } from '../../../../lib/prisma';
 import { signToken } from '../../../../lib/auth';
+import { attachAuthCookie } from '../../../../lib/cookie';
 
 export async function POST(req: Request) {
     try {
@@ -55,10 +56,13 @@ export async function POST(req: Request) {
         // Sign with jti + iat + exp via centralised helper
         const token = signToken(newUser.id, newUser.role);
 
-        return NextResponse.json(
+        // Return token in body (for API / mobile clients) AND as an httpOnly
+        // cookie (for browser-based navigation / middleware checks).
+        const response = NextResponse.json(
             { message: 'Registration successful', user: userWithoutPassword, token },
             { status: 201 }
         );
+        return attachAuthCookie(response, token);
     } catch (error) {
         console.error('Registration Error:', error);
         return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
