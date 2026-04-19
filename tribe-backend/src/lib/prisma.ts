@@ -1,3 +1,5 @@
+// Validate all required environment variables at startup.
+import './env';
 import { Pool } from 'pg';
 import { PrismaPg } from '@prisma/adapter-pg';
 import { PrismaClient } from '@prisma/client';

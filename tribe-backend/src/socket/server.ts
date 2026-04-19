@@ -5,11 +5,21 @@ import { PrismaClient } from '@prisma/client';
 import { Pool } from 'pg';
 import { PrismaPg } from '@prisma/adapter-pg';
 import * as dotenv from 'dotenv';
+import { isToxic } from '../services/comprehendService';
+import { generateIcebreakers, generateConversationRescue } from '../services/wingmanService';
 
 dotenv.config();
 
 const PORT = Number(process.env.SOCKET_PORT ?? 4000);
-const JWT_SECRET = process.env.JWT_SECRET || 'default-secret-key';
+
+if (!process.env.JWT_SECRET) {
+    throw new Error(
+        '[socket/server] JWT_SECRET environment variable is not set. ' +
+        'Set it in your .env file and restart the server.',
+    );
+}
+
+const JWT_SECRET = process.env.JWT_SECRET;
 
 // Dedicated Prisma instance for socket process
 const pool = new Pool({ connectionString: process.env.DATABASE_URL });
@@ -88,6 +98,16 @@ io.on('connection', (socket) => {
 
         if (!content || content.length > 1000) return;
 
+        try {
+            const toxic = await isToxic(content);
+            if (toxic) {
+                socket.emit('error', 'Message blocked due to inappropriate content (hate speech, harassment, etc).');
+                return;
+            }
+        } catch (err) {
+            console.error("Toxicity check failed", err);
+        }
+
         // Re-validate membership
         const match = await prisma.matchUnlock.findFirst({
             where: {
@@ -116,6 +136,74 @@ io.on('connection', (socket) => {
         });
     });
 
+    // ─── STEP 4: AI Wingman Command ──────────────────────────────────────────
+    socket.on('wingman', async (payload: { matchId: string; action?: string }) => {
+        const { matchId, action } = payload;
+        if (!matchId) return;
+
+        const match = await prisma.matchUnlock.findFirst({
+            where: { id: matchId, OR: [{ user1Id: userId }, { user2Id: userId }] }
+        });
+        if (!match) return;
+
+        const partnerId = match.user1Id === userId ? match.user2Id : match.user1Id;
+
+        const [userA, userB] = await Promise.all([
+            prisma.user.findUnique({
+                where: { id: userId },
+                include: {
+                    interests: { select: { interest: { select: { name: true } } }, take: 10 },
+                    interestPosts: { select: { caption: true, interest: { select: { name: true } } }, take: 5 }
+                }
+            }),
+            prisma.user.findUnique({
+                where: { id: partnerId },
+                include: {
+                    interests: { select: { interest: { select: { name: true } } }, take: 10 },
+                    interestPosts: { select: { caption: true, interest: { select: { name: true } } }, take: 5 }
+                }
+            })
+        ]);
+
+        if (!userA || !userB) return;
+
+        const profileA = {
+            name: userA.name || 'Anonymous',
+            bio: userA.bio,
+            interests: userA.interests.map((ui: any) => ui.interest.name),
+            recentPosts: userA.interestPosts.map((p: any) => ({ caption: p.caption, interestName: p.interest?.name || '' }))
+        };
+        const profileB = {
+            name: userB.name || 'Anonymous',
+            bio: userB.bio,
+            interests: userB.interests.map((ui: any) => ui.interest.name),
+            recentPosts: userB.interestPosts.map((p: any) => ({ caption: p.caption, interestName: p.interest?.name || '' }))
+        };
+
+        let suggestions: string[] = [];
+
+        if (action === 'rescue') {
+            const messages = await prisma.message.findMany({
+                where: { matchId },
+                orderBy: { createdAt: 'desc' },
+                take: 10,
+                include: { sender: { select: { name: true } } }
+            });
+            const recentMsgs = messages.reverse().map(m => ({ sender: m.sender.name || 'User', content: m.content }));
+            suggestions = await generateConversationRescue(profileA, profileB, recentMsgs);
+        } else {
+            suggestions = await generateIcebreakers(profileA, profileB);
+        }
+
+        socket.emit('wingman_response', {
+            matchId,
+            suggestions,
+            partnerName: profileB.name
+        });
+
+        console.log(`[socket] Wingman activated for ${userId} in match:${matchId}`);
+    });
+
     socket.on('disconnect', () => {
         onlineUsers.delete(userId);
         socket.broadcast.emit('user_offline', { userId });
@@ -123,7 +211,7 @@ io.on('connection', (socket) => {
     });
 
 
-    // ─── STEP 4: Typing Indicators ───────────────────────────────────────────
+    // ─── STEP 5: Typing Indicators ───────────────────────────────────────────
     socket.on('typing_start', (matchId: string) => {
         socket.to(`match:${matchId}`).emit('typing_start', { userId });
     });
