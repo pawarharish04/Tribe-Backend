@@ -54,24 +54,18 @@ export function calculateInterestScore(
     userInterests.forEach(ui => userInterestMap.set(ui.interestId, ui));
 
     targetInterests.forEach(ti => {
-        const usageCount = ti.interest.usageCount || 0;
-        const rarityFactor = getRarityFactor(usageCount);
-
         // Exact Match
         if (userInterestMap.has(ti.interestId)) {
-            const basePoints = 30;
+            const basePoints = 20;
 
-            // Optional strength weight bonus if the user has a level defined
             const userLevel = userInterestMap.get(ti.interestId)?.level || 1;
             const targetLevel = ti.level || 1;
 
-            // Bonus for high mutual proficiency using a multiplier
-            // e.g., level 3 mutual = 0.3 modifier -> 30 * 1.3 = 39 (before rarity)
-            const strengthModifier = Math.min(userLevel, targetLevel) * 0.1;
-            score += (basePoints * (1 + strengthModifier)) * rarityFactor;
+            // level multiplier = min(userLevel, targetLevel) * 2, capped at 10
+            const levelBonus = Math.min(Math.min(userLevel, targetLevel) * 2, 10);
+            score += basePoints + levelBonus;
 
             exactMatches++;
-
             return;
         }
 
@@ -79,34 +73,31 @@ export function calculateInterestScore(
         let matchedParentChild = false;
         for (const ui of userInterests) {
             if (ti.interest.parentId === ui.interestId || ui.interest.parentId === ti.interestId) {
-                score += 18 * rarityFactor;
+                score += 12;
                 matchedParentChild = true;
                 parentChildMatches++;
-                break; // Prevent double counting for the same target interest
+                break;
             }
         }
 
         if (matchedParentChild) return;
 
         // Same-Category match (Siblings sharing the same parent)
-        let matchedCategory = false;
         for (const ui of userInterests) {
             if (
                 ti.interest.parentId &&
                 ui.interest.parentId &&
                 ti.interest.parentId === ui.interest.parentId
             ) {
-                score += 12 * rarityFactor;
-                matchedCategory = true;
+                score += 8;
                 sameCategoryMatches++;
-                break; // Prevent double counting sibling overlaps
+                break;
             }
         }
     });
 
-    // Enforce a ceiling so numerous interests don't explode the score
     return {
-        score: Math.min(score, 100),
+        score,
         exactMatches,
         parentChildMatches,
         sameCategoryMatches
@@ -156,18 +147,15 @@ export function calculateFinalMatchScore(
     interestScore: number,
     distanceSq: number | null,
     sharedInterestPostsCount: number = 0,
-    momentumBoost: number = 0,
-    lastActiveAt?: Date | null
+    momentumBoost: number = 0
 ): number {
     const postBoost = Math.min(sharedInterestPostsCount * 2, 6);
-    const boostedScore = Math.min(interestScore + postBoost + momentumBoost, 100);
+    const boostedScore = interestScore + postBoost + momentumBoost;
 
-    const activityFactor = getActivityFactor(lastActiveAt);
+    if (distanceSq === null) return Math.min(Math.round(boostedScore), 100);
 
-    if (distanceSq === null) return Math.min(Math.round(boostedScore * activityFactor), 100);
-
-    const distanceKm = Math.sqrt(distanceSq) * 111;
-    const distanceFactor = getDistanceFactor(distanceKm);
-
-    return Math.min(Math.round(boostedScore * distanceFactor * activityFactor), 100);
+    // penalty: (distanceSq / 0.01) * 5, capped at 30
+    const penalty = Math.min((distanceSq / 0.01) * 5, 30);
+    
+    return Math.max(0, Math.min(Math.round(boostedScore - penalty), 100));
 }

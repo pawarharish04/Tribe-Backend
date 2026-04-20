@@ -23,7 +23,7 @@ async function getTokenFromRequest(request: NextRequest): Promise<string | null>
     return cookie?.value ?? null;
 }
 
-export async function middleware(request: NextRequest) {
+export async function proxy(request: NextRequest) {
     const token = await getTokenFromRequest(request);
 
     if (!token) {

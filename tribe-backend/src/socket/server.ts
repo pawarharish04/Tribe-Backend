@@ -1,4 +1,4 @@
-import { Server } from 'socket.io';
+import { Server, Socket } from 'socket.io';
 import http from 'http';
 import jwt from 'jsonwebtoken';
 import { PrismaClient } from '@prisma/client';
@@ -11,6 +11,13 @@ import { generateIcebreakers, generateConversationRescue } from '../services/win
 dotenv.config();
 
 const PORT = Number(process.env.SOCKET_PORT ?? 4000);
+
+// Define extended socket type
+interface AuthenticatedSocket extends Socket {
+    userId: string;
+}
+
+// ... rest of the imports and setup ...
 
 // ─── CORS allowlist ───────────────────────────────────────────────────────────
 // Set CORS_ORIGIN in .env as a comma-separated list of allowed origins:
@@ -79,7 +86,7 @@ io.use((socket, next) => {
 
     try {
         const decoded = jwt.verify(token, JWT_SECRET) as { userId: string };
-        (socket as any).userId = decoded.userId;
+        (socket as AuthenticatedSocket).userId = decoded.userId;
         next();
     } catch {
         next(new Error('Invalid token'));
@@ -88,7 +95,7 @@ io.use((socket, next) => {
 
 // ─── Connections ─────────────────────────────────────────────────────────────
 io.on('connection', (socket) => {
-    const userId: string = (socket as any).userId;
+    const userId = (socket as AuthenticatedSocket).userId;
     console.log(`[socket] Connected: ${socket.id} (user: ${userId})`);
 
     // Track presence

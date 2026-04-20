@@ -30,7 +30,7 @@ export async function calculateCompatibilityBatch(primaryUserId: string, candida
 
     if (!primaryUser) return [];
 
-    let vectorDistances = new Map<string, number>();
+    const vectorDistances = new Map<string, number>();
     try {
         const vResults = await prisma.$queryRaw<{id: string, distance: number | null}[]>`
             SELECT id, "bioEmbedding" <=> (SELECT "bioEmbedding" FROM "User" WHERE id = ${primaryUserId}::uuid) as distance
