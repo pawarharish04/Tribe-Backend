@@ -7,8 +7,8 @@ import { rateLimit, rateLimitResponse } from '../../../lib/rateLimit';
 
 const InteractionSchema = z.object({
     targetId: z.string().uuid({ message: 'targetId must be a valid UUID.' }),
-    type:     z.enum(['LIKE', 'PASS', 'SUPERLIKE'], {
-        errorMap: () => ({ message: "type must be one of: LIKE, PASS, SUPERLIKE." }),
+    type:     z.enum(['LIKE', 'PASS', 'SUPERLIKE'] as const, {
+        error: "type must be one of: LIKE, PASS, SUPERLIKE.",
     }),
 });
 

@@ -4,7 +4,7 @@ import { getAuthFromRequest } from '../../../../../lib/auth';
 
 export async function PATCH(req: Request, { params }: { params: Promise<{ id: string }> | { id: string } }) {
     try {
-        const auth = getAuthFromRequest(req);
+        const auth = await getAuthFromRequest(req);
         if (!auth || auth.role !== 'ADMIN') {
             return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
         }
