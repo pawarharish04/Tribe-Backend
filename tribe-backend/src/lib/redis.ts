@@ -17,13 +17,21 @@ const BLACKLIST_PREFIX = 'jwt:blacklist:';
  */
 export async function blacklistToken(jti: string, ttlSeconds: number): Promise<void> {
     if (ttlSeconds <= 0) return; // already expired — no need to store
-    await redis.set(`${BLACKLIST_PREFIX}${jti}`, '1', { ex: ttlSeconds });
+    try {
+        await redis.set(`${BLACKLIST_PREFIX}${jti}`, '1', { ex: ttlSeconds });
+    } catch (err) {
+        console.warn('Redis unavailable for token blacklisting:', err);
+    }
 }
 
 /**
  * Returns true if the jti has been blacklisted (i.e. logged out).
  */
 export async function isTokenBlacklisted(jti: string): Promise<boolean> {
-    const val = await redis.get(`${BLACKLIST_PREFIX}${jti}`);
-    return val !== null;
+    try {
+        const val = await redis.get(`${BLACKLIST_PREFIX}${jti}`);
+        return val !== null;
+    } catch (err) {
+        return false;
+    }
 }
