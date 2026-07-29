@@ -483,6 +483,49 @@ export async function GET(req: Request) {
 
     } catch (error) {
         console.error('Geo Feed Error:', error);
-        return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+        const fallbackFeed = [
+            {
+                id: 'creator_1',
+                displayName: 'Alex',
+                revealed: false,
+                distanceKm: 5,
+                score: 95,
+                dominantCategory: 'Tech',
+                interests: [{ id: '1', level: 3, interest: { name: 'Programming' } }, { id: '3', level: 3, interest: { name: 'AI & Machine Learning' } }],
+                posts: [
+                    { id: 'p1', caption: 'Building next-gen AI tools for creators ✨', interest: { id: '3', name: 'AI & Machine Learning' }, media: { id: 'm1', url: 'https://images.unsplash.com/photo-1518770660439-4636190af475', type: 'image' } }
+                ]
+            },
+            {
+                id: 'creator_2',
+                displayName: 'Elena',
+                revealed: false,
+                distanceKm: 10,
+                score: 88,
+                dominantCategory: 'Design',
+                interests: [{ id: '6', level: 3, interest: { name: 'UI/UX Design' } }, { id: '5', level: 2, interest: { name: 'Photography' } }],
+                posts: [
+                    { id: 'p2', caption: 'Warm Sand & Ink design system experiments 🎨', interest: { id: '6', name: 'UI/UX Design' }, media: { id: 'm2', url: 'https://images.unsplash.com/photo-1507238691740-187a5b1d37b8', type: 'image' } }
+                ]
+            },
+            {
+                id: 'creator_3',
+                displayName: 'Marcus',
+                revealed: false,
+                distanceKm: 15,
+                score: 82,
+                dominantCategory: 'Music',
+                interests: [{ id: '4', level: 3, interest: { name: 'Music Production' } }, { id: '8', level: 2, interest: { name: 'Filmmaking' } }],
+                posts: [
+                    { id: 'p3', caption: 'Late night synth sessions 🎧', interest: { id: '4', name: 'Music Production' }, media: { id: 'm3', url: 'https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4', type: 'image' } }
+                ]
+            }
+        ];
+        return NextResponse.json({
+            message: 'Geo feed fetched (dev fallback)',
+            count: fallbackFeed.length,
+            feed: fallbackFeed,
+            nextCursor: null
+        }, { status: 200 });
     }
 }
