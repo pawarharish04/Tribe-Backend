@@ -46,7 +46,7 @@ function MiniGallery({ posts, revealed }: { posts: FeedUser['posts']; revealed: 
             {visible.map((post, idx) => {
                 const locked = !revealed && idx >= 2;
                 return (
-                    <div key={post.id} style={{
+                    <div key={post.id || `post_${idx}`} style={{
                         position: 'relative', flexShrink: 0,
                         width: '72px', height: '72px', borderRadius: '10px',
                         background: 'rgba(255,255,255,0.06)',
@@ -251,8 +251,8 @@ function FeedCard({ user, onLike, onPass, onSuperlike, stacked = false, stackDep
 
                 {/* Interests */}
                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
-                    {user.interests.slice(0, 4).map(ui => (
-                        <InterestTag key={ui.interestId} name={ui.interest.name} size="sm" />
+                    {user.interests.slice(0, 4).map((ui, idx) => (
+                        <InterestTag key={ui.interestId || ui.interest?.id || ui.id || `int_${idx}`} name={ui.interest?.name || 'Interest'} size="sm" />
                     ))}
                     {user.interests.length > 4 && (
                         <span style={{ fontSize: '11px', color: 'rgba(248,250,252,0.35)', fontFamily: 'Inter, sans-serif', alignSelf: 'center' }}>
